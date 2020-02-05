@@ -5,10 +5,12 @@ source_df = pd.read_csv('data/dawiki-latest-abstract.csv')
 source_df = source_df[['title', 'abstract']]
 print('{} rows loaded'.format(len(source_df['title'])))
 
+source_df['title'] = source_df['title'].str.lower()
+
 titles = []
 abstracts = []
 claims = []
-dictionary = []
+dictionaries = []
 
 while True:
     print('Source sentence:')
@@ -28,7 +30,16 @@ while True:
     user_input = input("Enter other sources (comma separated) or press enter:\n")
     other_sources = user_input.split(',')
     other_sources = [x.strip() for x in other_sources]
-    dictionary.append(other_sources)
+
+    dictionary = {}
+    for os in other_sources:
+        if os != '':
+            other_row = source_df.query('title == \'{}\''.format(os.lower()))
+            if len(other_row['title']):
+                other_abstract = ['abstract'].values[0]
+                dictionary[os] = other_abstract
+
+    dictionaries.append(dictionary)
 
     titles.append(source['title'].values[0])
     abstracts.append(source['abstract'].values[0])
