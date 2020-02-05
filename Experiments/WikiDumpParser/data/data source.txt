@@ -1,0 +1,3 @@
+https://dumps.wikimedia.org/dawiki/latest/
+
+dawiki-latest-abstract.xml
