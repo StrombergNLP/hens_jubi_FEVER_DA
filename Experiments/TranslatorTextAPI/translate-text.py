@@ -55,7 +55,7 @@ with open('data/train.jsonl') as train_json_file:
 
 # Read rosetta stone
 print('Reading Rosetta Stone...')
-rosetta_df = pd.read_json('rosetta-stone.json', lines=True)
+rosetta_df = pd.read_json('rosetta-stone.jsonl', lines=True)
 
 # Read index
 print('Reading index...')
@@ -137,6 +137,6 @@ train_df_da.to_json('out/{}_da.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%
 
 print('Saving rosetta stone...')
 # Save rosetta stone
-rosetta_df.to_json('rosetta-stone.json', orient='records', lines=True)
+rosetta_df.to_json('rosetta-stone.jsonl', orient='records', lines=True)
 
 print("SUCCESS!")
