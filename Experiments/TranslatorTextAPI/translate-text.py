@@ -143,10 +143,14 @@ try:
 except Exception as e:
     print('Exception: ', e)
 
+# Recovery after exception
+min_len = min(len(claims_translated), len(evidences_translated), len(evidences_en))
+train_df = train_df.head(min_len)
+
 # Save translations to dataframe
-train_df.insert(4, 'claim_da', claims_translated)
-train_df.insert(5, 'evidence_da', evidences_translated)
-train_df.insert(6, 'evidence_en', evidences_en)
+train_df.insert(4, 'claim_da', claims_translated[:min_len+1])
+train_df.insert(5, 'evidence_da', evidences_translated[:min_len+1])
+train_df.insert(6, 'evidence_en', evidences_en[:min_len+1])
 
 print('Saving claims and evidence...')
 # Save dataframe as json
