@@ -4,10 +4,16 @@
 import os, requests, uuid, json
 from datetime import datetime
 import pandas as pd
+import time
 
-def translate(text):
+def translate(text, delay_factor=1):
     """Translate given text to Danish. Return translated text."""
-    print('Translating {}...'.format(text[:15]))
+    print('Translating {}...'.format(text[:50]))
+    if (len(text) > 5000): # Text may not exceed 500 characters
+        print('Request exceeds character limit. Skipping...')
+        return 'N/A'
+
+    time.sleep(len(text) / 500 * delay_factor) # Artifical delay to not overwhelm the server
 
      # Set request body for request
     body = [{
@@ -18,7 +24,13 @@ def translate(text):
     request = requests.post(constructed_url, headers=headers, json=body)
     response = request.json()
 
-    return response[0]['translations'][0]['text'] # navigating through json object response
+    # Validate
+    try:
+        translation = response[0]['translations'][0]['text'] # navigating through json object response
+        return translation
+    except:
+        print('Translation failed. Skipping...')
+        return 'N/A'
 
 # Extract key and endpoint from environment variables
 print('Reading environment variables...')
@@ -65,7 +77,7 @@ index_df = pd.read_json('wiki-index.jsonl', lines=True)
 train_df = pd.DataFrame(data)
 
 # Sample
-train_df = train_df.sample(3)
+train_df = train_df.sample(300)
 
 # Loop over claims and translate each
 print('Processing claims...')
@@ -73,55 +85,63 @@ claims_translated = []
 evidences_translated = []
 evidences_en = []
 
-i = 1
-for index, row in train_df.iterrows():
-    print('Processing claim {}/{}...'.format(i, len(train_df['id']+1)), end='\r')
-    i += 1
-    # Claim
-    claim_en = row['claim']
+try:
+    i = 1
+    for index, row in train_df.iterrows():
+        print('Processing claim {}/{}...'.format(i, len(train_df['id']+1)))
+        i += 1
+        # Claim
+        claim_en = row['claim']
 
-    claim_da = translate(claim_en)
-    claims_translated.append(claim_da)
+        claim_da = translate(claim_en)
+        claims_translated.append(claim_da)
 
-    # Evidence
+        # Evidence
 
-    # Lookup evidence
-    claim_evidence_list = row['evidence'][0]
-    claim_evidence_translated = []
-    claim_evidence_en = []
+        # Lookup evidence
+        claim_evidence_list = row['evidence'][0]
+        claim_evidence_translated = []
+        claim_evidence_en = []
 
-    for claim_evidence in claim_evidence_list:
-        evidence_id = claim_evidence[2]
-        if evidence_id is None:
-            evidence_da = ''
-            evidence_en = ''
-        else:
-            # Determine whether we already translated it before
-            translation_row = rosetta_df.query('id == \'{}\''.format(evidence_id))
-            if len(translation_row['id']):
-                evidence_da = translation_row['evidence_da'].values[0]
-                evidence_en = translation_row['evidence_en'].values[0]
+        for claim_evidence in claim_evidence_list:
+            evidence_id = claim_evidence[2]
+            if evidence_id is None:
+                evidence_da = ''
+                evidence_en = ''
             else:
+                # Determine whether we already translated it before
+                translation_row = rosetta_df.query('id == \"{}\"'.format(evidence_id))
+                if len(translation_row['id']):
+                    print('Thank you, Napoleon!')
+                    evidence_da = translation_row['evidence_da'].values[0]
+                    evidence_en = translation_row['evidence_en'].values[0]
+                else:
 
-                # Look up file name in index
-                index_row = index_df.query('id == \'{}\''.format(evidence_id))
-                file_name = index_row['file_name'].values[0]
+                    # Look up file name in index
+                    index_row = index_df.query('id == \"{}\"'.format(evidence_id))
+                    if len(index_row['file_name']) == 0: # If evidence id can't be found in index
+                        evidence_da = ''
+                        evidence_en = ''
+                    else:
+                        file_name = index_row['file_name'].values[0]
 
-                # Look up evidence in file
-                wiki_file = pd.read_json('data/wiki-pages/' + file_name, lines=True)
-                evidence_row = wiki_file.query('id == \'{}\''.format(evidence_id))
-                evidence_en = evidence_row['text'].values[0]
+                        # Look up evidence in file
+                        wiki_file = pd.read_json('data/wiki-pages/' + file_name, lines=True)
+                        evidence_row = wiki_file.query('id == \"{}\"'.format(evidence_id))
+                        evidence_en = evidence_row['text'].values[0]
 
-                # Translate evidence
-                evidence_da = translate(evidence_en)
+                        # Translate evidence
+                        evidence_da = translate(evidence_en)
 
-                rosetta_df = rosetta_df.append({'id': evidence_id, 'evidence_da': evidence_da, 'evidence_en': evidence_en}, ignore_index=True)
+                        rosetta_df = rosetta_df.append({'id': evidence_id, 'evidence_da': evidence_da, 'evidence_en': evidence_en}, ignore_index=True)
 
-        claim_evidence_translated.append(evidence_da)
-        claim_evidence_en.append(evidence_en)
-    evidences_translated.append(claim_evidence_translated)
-    evidences_en.append(claim_evidence_en)
-print('')
+            claim_evidence_translated.append(evidence_da)
+            claim_evidence_en.append(evidence_en)
+        evidences_translated.append(claim_evidence_translated)
+        evidences_en.append(claim_evidence_en)
+
+except Exception as e:
+    print('Exception: ', e)
 
 # Save translations to dataframe
 train_df.insert(4, 'claim_da', claims_translated)
