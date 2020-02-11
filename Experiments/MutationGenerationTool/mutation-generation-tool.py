@@ -8,9 +8,13 @@ source_df = source_df[['claim', 'entity', 'evidence']]
 print('{} rows loaded.\n'.format(len(source_df['claim'])))
 
 mutations_df = pd.DataFrame()
+counter = 1
 
 for index, source_row in source_df.iterrows():
-    
+    print('Claim {}/{}'.format(counter, len(source_df['claim'])))
+    print('')
+    counter += 1
+
     source_claim = source_row['claim']
     source_entity = source_row['entity']
     source_evidence = source_row['evidence']
