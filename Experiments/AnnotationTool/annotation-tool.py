@@ -10,8 +10,13 @@ print('{} rows loaded.'.format(len(source_df['claim'])))
 annotation_df = pd.DataFrame()
 
 source_df = source_df.sample(frac=1) # Shuffling the rows 
+counter = 1
 
 for index, source_row in source_df.iterrows():
+    print('Claim {}/{}'.format(counter, len(source_df['claim'])))
+    print('')
+
+    counter += 1
     source_claim = source_row['claim']
     source_entity = source_row['entity']
     source_evidence = source_row['evidence']
