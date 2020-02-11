@@ -4,7 +4,7 @@ import random, nltk
 
 source_df = pd.read_csv('data/dawiki-latest-abstract.csv')
 source_df = source_df[['title', 'abstract']]
-print('{} rows loaded.\n'.format(len(source_df['title'])))
+print('{} rows loaded.'.format(len(source_df['title'])))
 
 claims_df = pd.DataFrame()
 
@@ -21,10 +21,10 @@ while True:
     else:
         continue # Empty abstract, skip
 
-    if len(source_sentence) <= 20:
+    if len(source_sentence) <= 20 or not source_sentence.endswith('.'):
         continue # Empty/short sentence, skip
 
-    print('Source entity:')
+    print('\nSource entity:')
     print(source_title)
     print('Source sentence:')
     print(source_sentence)
