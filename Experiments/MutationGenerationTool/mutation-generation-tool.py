@@ -10,11 +10,11 @@ print('{} rows loaded.\n'.format(len(source_df['claim'])))
 mutations_df = pd.DataFrame()
 
 
-while True:
-    source_row = source_df.sample(1) # Sample one row
-    source_claim = source_row['claim'].values[0]
-    source_entity = source_row['entity'].values[0]
-    source_evidence = source_row['evidence'].values[0]
+for index, source_row in source_df.iterrows():
+    
+    source_claim = source_row['claim']
+    source_entity = source_row['entity']
+    source_evidence = source_row['evidence']
 
     # Save original claim 
     mutations_df = mutations_df.append({'claim': source_claim, 'entity': source_entity, 'evidence': source_evidence}, ignore_index=True)
@@ -25,11 +25,15 @@ while True:
     print(source_entity)
     print('')
 
+    quit_flag = False
 
     while True:
-        user_input = input("Write mutation or hit enter to skip \n")
+        user_input = input("Write mutation or hit enter to skip  or 'quit'\n")
 
-        if user_input == '':
+        if user_input == 'quit':
+            quit_flag = True
+            break
+        elif user_input == '':
             print('')
             break
         else:
@@ -37,19 +41,14 @@ while True:
             mutations_df = mutations_df.append({'claim': user_input, 'entity': source_entity, 'evidence': source_evidence}, ignore_index=True)
         print('')
 
-    user_input = input("Hit enter for new claim or 'quit' \n")
-    
-    if user_input == 'quit': 
+    if quit_flag:
         break
-    else: 
-        continue
 
+
+print('No more claims. Good job, Old Sport!')
 
 if not mutations_df.empty:
     mutations_df.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
     print('Saved {} mutations to file.'.format(len(mutations_df['claim'])))
 else:
      print('No mutations were saved.')
-
-
-
