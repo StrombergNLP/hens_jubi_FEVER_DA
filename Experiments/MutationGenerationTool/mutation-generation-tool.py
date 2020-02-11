@@ -23,7 +23,7 @@ while True:
     print(source_claim + '\n')
 
     while True:
-        user_input = input("Write mutation or hit enter to skip) \n")
+        user_input = input("Write mutation or hit enter to skip \n")
 
         if user_input == '':
             print('')
