@@ -9,12 +9,11 @@ print('{} rows loaded.'.format(len(source_df['claim'])))
 
 annotation_df = pd.DataFrame()
 
-while True:
+for index, source_row in source_df.iterrows():
     source_row = source_df.sample(1) # Sample one row
     source_claim = source_row['claim'].values[0]
     source_entity = source_row['entity'].values[0]
     source_evidence = source_row['evidence'].values[0]
-
 
     print('\nSource claim:')
     print(source_claim)
@@ -44,6 +43,7 @@ while True:
     elif user_input != '':
         annotation_df = annotation_df.append({'claim': source_claim, 'entity': source_entity, 'evidence': source_evidence, 'label': annotation}, ignore_index=True)
 
+print('No more claim + evidence pairs to annotate. Good job, Old Sport!')
 
 if not annotation_df.empty:
     annotation_df.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
