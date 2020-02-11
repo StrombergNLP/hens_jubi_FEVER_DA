@@ -1,6 +1,6 @@
 from datetime import datetime
 import pandas as pd
-import random
+import random, nltk
 
 source_df = pd.read_csv('data/dawiki-latest-abstract.csv')
 source_df = source_df[['title', 'abstract']]
@@ -13,14 +13,15 @@ while True:
     source_title = source_row['title'].values[0]
     source_abstract = source_row['abstract'].values[0]
     
-    # Sample one sentence from abstract
-    abstract_split = source_abstract.split('.') # Too imprecise
-    if len(abstract_split):
-        source_sentence = random.choice(abstract_split).strip() + '.'
+    # Split abstract into sentences (better than just splitting by '.')
+    source_abstract_tokenized = nltk.sent_tokenize(source_abstract, language='danish')
+    if len(source_abstract_tokenized):
+        # Sample one sentence from abstract
+        source_sentence = random.choice(source_abstract_tokenized)
     else:
         continue # Empty abstract, skip
 
-    if len(source_sentence) <= 10:
+    if len(source_sentence) <= 20:
         continue # Empty/short sentence, skip
 
     print('Source entity:')
