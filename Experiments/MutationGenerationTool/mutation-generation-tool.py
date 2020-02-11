@@ -3,12 +3,11 @@ import pandas as pd
 import random
 
 # source_df = pd.read_csv('data/dawiki-latest-abstract.csv')
-source_df = pd.read_json('data/test_data.jsonl', lines=True)
+source_df = pd.read_json('data/data.jsonl', lines=True)
 source_df = source_df[['claim', 'entity', 'evidence']]
 print('{} rows loaded.\n'.format(len(source_df['claim'])))
 
 mutations_df = pd.DataFrame()
-
 
 for index, source_row in source_df.iterrows():
     
