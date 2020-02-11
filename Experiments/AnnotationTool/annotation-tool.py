@@ -3,17 +3,18 @@ import pandas as pd
 import random
 
 # source_df = pd.read_csv('data/dawiki-latest-abstract.csv')
-source_df = pd.read_json('data/test_data.jsonl', lines=True)
+source_df = pd.read_json('data/data.jsonl', lines=True)
 source_df = source_df[['claim', 'entity', 'evidence']]
 print('{} rows loaded.'.format(len(source_df['claim'])))
 
 annotation_df = pd.DataFrame()
 
+source_df = source_df.sample(frac=1) # Shuffling the rows 
+
 for index, source_row in source_df.iterrows():
-    source_row = source_df.sample(1) # Sample one row
-    source_claim = source_row['claim'].values[0]
-    source_entity = source_row['entity'].values[0]
-    source_evidence = source_row['evidence'].values[0]
+    source_claim = source_row['claim']
+    source_entity = source_row['entity']
+    source_evidence = source_row['evidence']
 
     print('\nSource claim:')
     print(source_claim)
