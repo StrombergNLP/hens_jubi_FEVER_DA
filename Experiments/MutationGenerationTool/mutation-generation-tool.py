@@ -20,7 +20,11 @@ while True:
     mutations_df = mutations_df.append({'claim': source_claim, 'entity': source_entity, 'evidence': source_evidence}, ignore_index=True)
      
     print('Source claim:')
-    print(source_claim + '\n')
+    print(source_claim)
+    print('Source Entity:')
+    print(source_entity)
+    print('')
+
 
     while True:
         user_input = input("Write mutation or hit enter to skip \n")
