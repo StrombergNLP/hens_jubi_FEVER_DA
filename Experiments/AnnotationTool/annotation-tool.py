@@ -49,15 +49,15 @@ for index, source_row in source_df.iterrows():
         continue
     elif user_input != '':
         annotation_df = annotation_df.append({'claim': source_claim, 'entity': source_entity, 'evidence': source_evidence, 'label': annotation}, ignore_index=True)
-
-print('No more claim + evidence pairs to annotate. Good job, Old Sport!')
+else:
+    print('No more claim + evidence pairs to annotate. Good job, Old Sport!')
 
 if not annotation_df.empty:
     annotation_df.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
     print('Saved {} annotations to file.'.format(len(annotation_df['claim'])))
 
 else:
-      print('No mutations were saved.')
+      print('No annutations were saved.')
 
 
 
