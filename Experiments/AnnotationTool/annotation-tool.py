@@ -9,7 +9,7 @@ print('{} rows loaded.'.format(len(source_df['claim'])))
 
 annotation_df = pd.DataFrame()
 
-source_df = source_df.sample(frac=1) # Shuffling the rows 
+# source_df = source_df.sample(frac=1) # Shuffling the rows 
 counter = 1
 
 for index, source_row in source_df.iterrows():
