@@ -7,6 +7,7 @@ source_df = source_df[['title', 'abstract']]
 print('{} rows loaded.'.format(len(source_df['title'])))
 
 claims_df = pd.DataFrame()
+counter = 1
 
 while True:
     source_row = source_df.sample(1) # Sample one row
@@ -24,7 +25,9 @@ while True:
     if len(source_sentence) <= 20 or not source_sentence.endswith('.'):
         continue # Empty/short sentence, skip
 
-    print('\nSource entity:')
+    print('\nYou are working on claim number: {} \n'.format(counter))
+
+    print('Source entity:')
     print(source_title)
     print('Source sentence:')
     print(source_sentence)
@@ -35,6 +38,7 @@ while True:
     if user_input == 'quit':
         break
     elif user_input != '': # Add some extra validation here
+        counter +=1
         claims_df = claims_df.append({'claim': user_input, 'evidence': source_sentence, 'entity': source_title}, ignore_index=True)
 
 if not claims_df.empty:
@@ -42,6 +46,3 @@ if not claims_df.empty:
     print('Saved {} claims to file.'.format(len(claims_df['claim'])))
 else:
     print('No claims were saved.')
-
-
-
