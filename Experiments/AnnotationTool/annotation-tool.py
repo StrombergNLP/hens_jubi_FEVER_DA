@@ -2,14 +2,13 @@ from datetime import datetime
 import pandas as pd
 import random
 
-# source_df = pd.read_csv('data/dawiki-latest-abstract.csv')
 source_df = pd.read_json('data/data.jsonl', lines=True)
 source_df = source_df[['claim', 'entity', 'evidence']]
 print('{} rows loaded.'.format(len(source_df['claim'])))
 
 annotation_df = pd.DataFrame()
 
-# source_df = source_df.sample(frac=1) # Shuffling the rows 
+source_df = source_df.sample(frac=1) # Shuffling the rows 
 counter = 1
 
 for index, source_row in source_df.iterrows():
