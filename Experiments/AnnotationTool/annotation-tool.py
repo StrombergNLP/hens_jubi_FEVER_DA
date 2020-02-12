@@ -20,7 +20,9 @@ for index, source_row in source_df.iterrows():
     source_entity = source_row['entity']
     source_evidence = source_row['evidence']
 
-    print('\nSource claim:')
+    print('\nSource entity:')
+    print(source_entity)
+    print('Source claim:')
     print(source_claim)
     print('Source evidence:')
     print(source_evidence)
