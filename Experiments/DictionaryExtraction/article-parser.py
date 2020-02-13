@@ -1,9 +1,11 @@
+from datetime import datetime
 import xml.etree.ElementTree as ET
 import pandas as pd
 import re
 
 print('Loading file...')
 tree = ET.parse('data/dawiki-latest-pages-articles-multistream.xml')
+# tree = ET.parse('data/dawiki-test-file.xml')
 root = tree.getroot()
 
 df = pd.DataFrame()
@@ -24,19 +26,13 @@ for index, mother in enumerate(root):
 
                 for grandchild in child:
                     if grandchild.tag == 'text':
+                        # Handle entire article
                         rawtext = grandchild.text
                         rawtext = re.sub(r"(\[\[File?:.*)|({{.*}})", '',rawtext)
-
-                        # regex = r"(^\s*{{[\w\s|=\[\],<>/.\(\):-]*}}$)|(&lt;ref&gt;.*&lt;\/ref&gt;)|(''')|(^\s*==.*)|(<ref[\w\s=\"]*/>)"
-                        # regex = r"(^\s*{{([^}]+)}}$)|(&lt;ref&gt;.*&lt;\/ref&gt;)|(''')|(^\s*==.*)|(<ref[\w\s=\"]*/>)"
-                        # regex = r"(^\s*{{([^}]+)}}$)|(&lt;ref&gt;.*?&lt;\/ref&gt;)|(''')|(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
-                        regex = r"(^\s*{{([^}]+)}}$)|(&lt;ref.*?gt;)|(''')|(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
+                        regex = r"(^[\s:]*{{[^}]*}}$)|(&lt;.*?&gt;)|(''')|(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
                         cleantext = re.sub(regex, '', rawtext, flags=re.MULTILINE|re.DOTALL).strip()
 
                         # Save the first line 
-                        # abstract = cleantext.splitlines()
-                        
-                        # cleantext = re.sub(r"(<ref[\w\s=\"]*/>|</ref[\w\s=\"]*/>", '', cleantext)
                         abstract = cleantext.splitlines()[0] if len(cleantext.splitlines()) else ''
 
                         # Handle linked entities in that line
@@ -57,7 +53,6 @@ for index, mother in enumerate(root):
                         df = df.append({'Title': title, 'Abstract': abstract, 'Linked Entities': linked_entities}, ignore_index=True)
                         counter +=1
 
-    if counter == 51:
-        break
-
-df.to_json('out/testfile-4.jsonl', orient='records', lines=True)
+print('')
+df.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
+print('Saved {} articles to file.'.format(len(df['Title'])))
