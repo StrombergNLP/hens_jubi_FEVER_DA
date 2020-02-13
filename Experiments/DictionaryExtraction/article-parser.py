@@ -14,7 +14,7 @@ for index, mother in enumerate(root):
         print('Step {}'.format(counter), end='\r')
 
         for child in mother:
-            linked_entities = []    # ... In a String seperated by a ; every time we add to it? 
+            linked_entities = []
 
             if child.tag == 'title':
                 title = child.text
@@ -25,11 +25,19 @@ for index, mother in enumerate(root):
                 for grandchild in child:
                     if grandchild.tag == 'text':
                         rawtext = grandchild.text
-                        regex = r"(^\s*{{[\w\s|=\[\],<>/.\(\):-]*}}$)|(&lt;ref&gt;.*&lt;\/ref&gt;)|(''')|(^\s*==.*)|(<ref[\w\s=\"]*/>)"
+                        rawtext = re.sub(r"(\[\[File?:.*)|({{.*}})", '',rawtext)
+
+                        # regex = r"(^\s*{{[\w\s|=\[\],<>/.\(\):-]*}}$)|(&lt;ref&gt;.*&lt;\/ref&gt;)|(''')|(^\s*==.*)|(<ref[\w\s=\"]*/>)"
+                        # regex = r"(^\s*{{([^}]+)}}$)|(&lt;ref&gt;.*&lt;\/ref&gt;)|(''')|(^\s*==.*)|(<ref[\w\s=\"]*/>)"
+                        # regex = r"(^\s*{{([^}]+)}}$)|(&lt;ref&gt;.*?&lt;\/ref&gt;)|(''')|(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
+                        regex = r"(^\s*{{([^}]+)}}$)|(&lt;ref.*?gt;)|(''')|(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
                         cleantext = re.sub(regex, '', rawtext, flags=re.MULTILINE|re.DOTALL).strip()
 
                         # Save the first line 
-                        abstract = cleantext.splitlines()[0]
+                        # abstract = cleantext.splitlines()
+                        
+                        # cleantext = re.sub(r"(<ref[\w\s=\"]*/>|</ref[\w\s=\"]*/>", '', cleantext)
+                        abstract = cleantext.splitlines()[0] if len(cleantext.splitlines()) else ''
 
                         # Handle linked entities in that line
                         regex = r"\[\[(.*?)\]\]"
@@ -48,12 +56,8 @@ for index, mother in enumerate(root):
 
                         df = df.append({'Title': title, 'Abstract': abstract, 'Linked Entities': linked_entities}, ignore_index=True)
                         counter +=1
-                        print(title)
-                        print(abstract)
-                        print(linked_entities)
 
-    if counter == 6:
+    if counter == 51:
         break
 
-
-df.to_json('out/testfile.jsonl', orient='records', lines=True)
+df.to_json('out/testfile-4.jsonl', orient='records', lines=True)
