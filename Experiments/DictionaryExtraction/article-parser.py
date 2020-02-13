@@ -16,8 +16,7 @@ for index, mother in enumerate(root):
         for child in mother:
             title = ''
             abstract = ''
-            linked_entities = []    # Since there can be more than one, how do we store them in the DF? In a list or...
-            linked_entities = ''    # ... In a String seperated by a ; every time we add to it? 
+            linked_entities = []    # ... In a String seperated by a ; every time we add to it? 
 
             if child.tag == 'title':
                 title = child.text
@@ -27,20 +26,28 @@ for index, mother in enumerate(root):
 
                 for grandchild in child:
                     if grandchild.tag == 'text':
-
                         rawtext = grandchild.text
-                        regex = r"(^{{(.*)}}$)|(&lt;ref&gt;.*&lt;\/ref&gt;)|(''')|(^==.*)" 
-
-                        
-                        # cleantext = re.sub(pattern, '', rawtext)
-                        print(cleantext)
-
-                        # Remove the {} groups 
+                        regex = r"(^\s*{{[\w\s|=\[\],<>/.\(\):-]*}}$)|(&lt;ref&gt;.*&lt;\/ref&gt;)|(''')|(^\s*==.*)|(<ref[\w\s=\"]*/>)"
+                        cleantext = re.sub(regex, '', rawtext, flags=re.MULTILINE|re.DOTALL).strip()
 
                         # Save the first line 
+                        abstract = cleantext.splitlines()[0]
 
                         # Handle linked entities in that line
+                        regex = r"\[\[(.*?)\]\]"
+                        links = re.findall(regex, abstract)
 
                         # Store them as linked_entities 
+                        for l in links:
+                            l = re.sub(r"(?<!\\)\|.*", '', l)
+                            l = l.replace(' ', '_').strip()
+                            linked_entities.append(l)
 
-            # df = df.append({'Title': title, 'Abstract': '', 'Linked Entities': linked_entities}, lines=True)
+                        # Clean the abstract
+                        for l in links:
+                            clean_l = re.sub(r".*(?<!\\)\|", '', l)
+                            abstract = abstract.replace('[['+l+']]', clean_l)
+
+            df = df.append({'Title': title, 'Abstract': '', 'Linked Entities': linked_entities}, ignore_index=True)
+
+print(df)
