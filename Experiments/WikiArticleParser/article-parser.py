@@ -37,17 +37,26 @@ for index, mother in enumerate(root):
                         rawtext = grandchild.text
                         rawtext = re.sub(r"(\[\[File?:.*)|({{.*}})", '',rawtext)
 
-                        # regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&gt;)|('''?)|(^:.*)"
-                        # regex = r"(^\|.*)|({{[^}]*}*)|(&lt;ref&gt;.*?&lt;\/ref&gt;)|('''?)|(^:.*)"
                         regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&/?gt;)|('''?)|(^:.*)"
-                        abstract = re.sub(regex, '', rawtext).strip()
+                        cleantext = re.sub(regex, '', rawtext).strip()
                         regex = r"(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
-                        abstract = re.sub(regex, '', abstract, flags=re.MULTILINE|re.DOTALL).strip()
+                        cleantext = re.sub(regex, '', cleantext, flags=re.MULTILINE|re.DOTALL).strip()
 
-                        if '#redirect' in abstract.lower():
+                        if '#redirect' in cleantext.lower():
                             redirect += 1
                             break
                         
+                        abstract = ''
+                        cleantext = cleantext.splitlines()
+                        for line in cleantext: 
+                            if len(line) > 10:
+                                abstract = line
+                                break
+                        
+                        if abstract == '':
+                            faults += 1
+                            break
+
                         # Handle linked entities in that line
                         regex = r"\[\[(.*?)\]\]"
                         links = re.findall(regex, abstract)
@@ -63,10 +72,9 @@ for index, mother in enumerate(root):
                             clean_l = re.sub(r".*(?<!\\)\|", '', l)
                             abstract = abstract.replace('[['+l+']]', clean_l)
 
-                        if abstract != '':
-                            df = df.append({'Title': title, 'Abstract': abstract, 'Linked Entities': linked_entities}, ignore_index=True)
-                        else: 
-                            faults += 1
+
+                        df = df.append({'Title': title, 'Abstract': abstract, 'Linked Entities': linked_entities}, ignore_index=True)
+                            
                         counter +=1
 
     if counter == 10001:
