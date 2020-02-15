@@ -40,8 +40,10 @@ for index, mother in enumerate(root):
                         # abstract = cleantext.splitlines()[0] if len(cleantext.splitlines()) else ''
 
                         # regex = r"(^[\s:]*{{[^}]*}}$)|(&lt;.*?&gt;)|('''?)|(.*?^}})|(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
-                        regex = r"(^\|.*)|({{[^}]*}*)"
-                        abstract = re.sub(regex, '', rawtext, flags=re.MULTILINE|re.DOTALL).strip()
+                        regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&gt;)|('''?)"
+                        abstract = re.sub(regex, '', rawtext).strip()
+                        regex = r"(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
+                        abstract = re.sub(regex, '', abstract, flags=re.MULTILINE|re.DOTALL)
 
                         if '#redirect' in abstract.lower():
                             break
