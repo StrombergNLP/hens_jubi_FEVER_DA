@@ -11,6 +11,8 @@ root = tree.getroot()
 df = pd.DataFrame()
 counter = 1
 faults = 0
+title_fault = 0
+redirect = 0
 
 for index, mother in enumerate(root):
     if mother.tag == 'page':
@@ -24,6 +26,7 @@ for index, mother in enumerate(root):
                 title = title.replace(' ', '_')
 
                 if 'Hjælp:' in title or 'Wikipedia:' in title: 
+                    title_fault += 1
                     break
 
             elif child.tag == 'revision':
@@ -33,34 +36,16 @@ for index, mother in enumerate(root):
                         # Handle entire article
                         rawtext = grandchild.text
                         rawtext = re.sub(r"(\[\[File?:.*)|({{.*}})", '',rawtext)
-                        # regex = r"(^[\s:]*{{[^}]*}}$)|(&lt;.*?&gt;)|(''')|(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
-                        # cleantext = re.sub(regex, '', rawtext, flags=re.MULTILINE|re.DOTALL).strip()
 
-                        # Save the first line 
-                        # abstract = cleantext.splitlines()[0] if len(cleantext.splitlines()) else ''
-
-                        # regex = r"(^[\s:]*{{[^}]*}}$)|(&lt;.*?&gt;)|('''?)|(.*?^}})|(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
-                        regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&gt;)|('''?)"
+                        # regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&gt;)|('''?)|(^:.*)"
+                        regex = r"(^\|.*)|({{[^}]*}*)|(&lt;ref&gt;.*?&lt;\/ref&gt;)|('''?)|(^:.*)"
                         abstract = re.sub(regex, '', rawtext).strip()
                         regex = r"(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
-                        abstract = re.sub(regex, '', abstract, flags=re.MULTILINE|re.DOTALL)
+                        abstract = re.sub(regex, '', abstract, flags=re.MULTILINE|re.DOTALL).strip()
 
                         if '#redirect' in abstract.lower():
+                            redirect += 1
                             break
-
-                        # Experiments 
-                        # cleantext = rawtext.splitlines()
-                        #abstract = ''
-
-                        # abstract = cleantext.splitlines()[0] if len(cleantext.splitlines()) else ''
-
-                        # for line in cleantext: 
-                        #     if "'''" in line: 
-                        #         abstract = line 
-                        #         break
-
-                        # regex = r"'''?"
-                        # abstract = re.sub(regex, '', abstract)
                         
                         # Handle linked entities in that line
                         regex = r"\[\[(.*?)\]\]"
@@ -87,6 +72,8 @@ for index, mother in enumerate(root):
         break 
 
 print('')
-print('{} faults of {}'.format(faults, counter))
+print("{} 'hjælp' or 'wikipedia' titles".format(title_fault))
+print('{} redirect pages'.format(redirect))
+print('{} empty abstracts of {}'.format(faults, counter))
 df.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
 print('Saved {} articles to file.'.format(len(df['Title'])))
