@@ -38,7 +38,8 @@ for index, mother in enumerate(root):
                         rawtext = re.sub(r"(\[\[File?:.*)|({{.*}})", '',rawtext)
 
                         # regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&gt;)|('''?)|(^:.*)"
-                        regex = r"(^\|.*)|({{[^}]*}*)|(&lt;ref&gt;.*?&lt;\/ref&gt;)|('''?)|(^:.*)"
+                        # regex = r"(^\|.*)|({{[^}]*}*)|(&lt;ref&gt;.*?&lt;\/ref&gt;)|('''?)|(^:.*)"
+                        regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&/?gt;)|('''?)|(^:.*)"
                         abstract = re.sub(regex, '', rawtext).strip()
                         regex = r"(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
                         abstract = re.sub(regex, '', abstract, flags=re.MULTILINE|re.DOTALL).strip()
@@ -68,7 +69,7 @@ for index, mother in enumerate(root):
                             faults += 1
                         counter +=1
 
-    if counter == 201:
+    if counter == 10001:
         break 
 
 print('')
