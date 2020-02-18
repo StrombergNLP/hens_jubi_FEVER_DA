@@ -1,6 +1,7 @@
 from datetime import datetime
 import pandas as pd
 import random
+import re
 
 source_df = pd.read_json('data/data-dictionary-small.jsonl', lines=True)
 source_df = source_df[['claim', 'entity', 'evidence', 'dictionary']]
@@ -38,22 +39,27 @@ for index, source_row in source_df.iterrows():
     print('-------- ANNOTATE --------\n')
 
     invalid_input = True
+    quit_flag = False
+    continue_flag = False
 
     while invalid_input:      # Keep asking for input until valid
+        invalid_input = False
+
         user_input = input("[S] Supported \n[R] Refuted \n[N] Not Enough Info \nProvide useful sentences by their index \nEnter to skip or 'quit'\n")
 
         if user_input == 'quit': 
+            quit_flag = True
             break
+
+        elif user_input == '':
+            continue_flag = True
+            break 
 
         annotation = ''
         used_sentences = [source_evidence]
         used_entities = [source_entity]
-        malformed_input = False
 
-        if user_input == ' ':
-            continue 
-
-        input_tokens = user_input.split(' ')
+        input_tokens = re.split(r"\s+", user_input.strip())
         annotation_token = input_tokens[0]
 
         if annotation_token.lower() == 's':
@@ -65,19 +71,27 @@ for index, source_row in source_df.iterrows():
         elif annotation_token.lower() == 'n':
             annotation = 'NotEnoughInfo'
             source_evidence = ''
-
         else: 
-            malformed_input = True
+            invalid_input = True
+            print('Invalid annotation input detected. Try again.')
+            continue
 
-        for token in input_tokens[1:]:
-            token = int(token)
-            dict_object = source_dict[token]
+        try:
+            for token in input_tokens[1:]:
+                token = int(token)
+                dict_object = source_dict[token]
 
-            used_entities.append(dict_object['entity'])
-            used_sentences.append(dict_object['abstract'])
+                used_entities.append(dict_object['entity'])
+                used_sentences.append(dict_object['abstract'])
+        except:
+            invalid_input = True
+            print('Invalid sentence input detected. Try again.')
 
-        annotation_df = annotation_df.append({'claim': source_claim, 'entity': used_entities, 'evidence': used_sentences, 'label': annotation}, ignore_index=True)
-
+    if quit_flag: 
+        break
+    elif continue_flag: 
+        continue
+    annotation_df = annotation_df.append({'claim': source_claim, 'entity': used_entities, 'evidence': used_sentences, 'label': annotation}, ignore_index=True)
 
 else:
     print('No more claim + evidence pairs to annotate. Good job, Old Sport!')
@@ -87,7 +101,7 @@ if not annotation_df.empty:
     print('Saved {} annotations to file.'.format(len(annotation_df['claim'])))
 
 else:
-      print('No annutations were saved.')
+      print('No annotations were saved.')
 
 
 
