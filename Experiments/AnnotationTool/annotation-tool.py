@@ -2,25 +2,26 @@ from datetime import datetime
 import pandas as pd
 import random
 
-source_df = pd.read_json('data/data.jsonl', lines=True)
-source_df = source_df[['claim', 'entity', 'evidence']]
-print('{} rows loaded.'.format(len(source_df['claim'])))
+source_df = pd.read_json('data/data-dictionary-small.jsonl', lines=True)
+source_df = source_df[['claim', 'entity', 'evidence', 'dictionary']]
+print('{} rows loaded in claims.'.format(len(source_df['claim'])))
 
 annotation_df = pd.DataFrame()
-
 source_df = source_df.sample(frac=1) # Shuffling the rows 
 counter = 1
 
 for index, source_row in source_df.iterrows():
-    print('Claim {}/{}'.format(counter, len(source_df['claim'])))
     print('')
 
-    counter += 1
     source_claim = source_row['claim']
     source_entity = source_row['entity']
     source_evidence = source_row['evidence']
+    source_dict = source_row['dictionary']
 
-    print('\nSource entity:')
+    print('------- CLAIM {}/{} -------\n'.format(counter, len(source_df['claim'])))
+    counter += 1
+
+    print('Source entity:')
     print(source_entity)
     print('Source claim:')
     print(source_claim)
@@ -28,27 +29,56 @@ for index, source_row in source_df.iterrows():
     print(source_evidence)
     print('')
 
-    user_input = input("[1] Supported \n[2] Refuted \n[3] Not Enough Info \nEnter to skip or 'quit'\n")
+    print('------- DICTIONARY -------\n')
 
-    if user_input == 'quit': 
-        break
+    for index, pair in enumerate(source_dict):
+        abstract = pair['abstract']
+        print('[{}] {}\n'.format(index, abstract))
 
-    annotation = ''
+    print('-------- ANNOTATE --------\n')
 
-    if user_input == '1':
-        annotation = 'Supported'
+    invalid_input = True
 
-    elif user_input == '2': 
-        annotation = 'Refuted'
+    while invalid_input:      # Keep asking for input until valid
+        user_input = input("[S] Supported \n[R] Refuted \n[N] Not Enough Info \nProvide useful sentences by their index \nEnter to skip or 'quit'\n")
 
-    elif user_input == '3':
-        annotation = 'NotEnoughInfo'
-        source_evidence = ''
+        if user_input == 'quit': 
+            break
 
-    if user_input == '': 
-        continue
-    elif user_input != '':
-        annotation_df = annotation_df.append({'claim': source_claim, 'entity': source_entity, 'evidence': source_evidence, 'label': annotation}, ignore_index=True)
+        annotation = ''
+        used_sentences = [source_evidence]
+        used_entities = [source_entity]
+        malformed_input = False
+
+        if user_input == ' ':
+            continue 
+
+        input_tokens = user_input.split(' ')
+        annotation_token = input_tokens[0]
+
+        if annotation_token.lower() == 's':
+            annotation = 'Supported'
+
+        elif annotation_token.lower() == 'r': 
+            annotation = 'Refuted'
+
+        elif annotation_token.lower() == 'n':
+            annotation = 'NotEnoughInfo'
+            source_evidence = ''
+
+        else: 
+            malformed_input = True
+
+        for token in input_tokens[1:]:
+            token = int(token)
+            dict_object = source_dict[token]
+
+            used_entities.append(dict_object['entity'])
+            used_sentences.append(dict_object['abstract'])
+
+        annotation_df = annotation_df.append({'claim': source_claim, 'entity': used_entities, 'evidence': used_sentences, 'label': annotation}, ignore_index=True)
+
+
 else:
     print('No more claim + evidence pairs to annotate. Good job, Old Sport!')
 
