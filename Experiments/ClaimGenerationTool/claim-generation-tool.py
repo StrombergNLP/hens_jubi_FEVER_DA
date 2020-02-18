@@ -15,13 +15,14 @@ while True:
     source_abstract = source_row['abstract'].values[0]
     
     # Split abstract into sentences (better than just splitting by '.')
-    source_abstract_tokenized = nltk.sent_tokenize(source_abstract, language='danish')
-    if len(source_abstract_tokenized):
-        # Sample one sentence from abstract
-        source_sentence = random.choice(source_abstract_tokenized)
-    else:
-        continue # Empty abstract, skip
+    # source_abstract_tokenized = nltk.sent_tokenize(source_abstract, language='danish')
+    # if len(source_abstract_tokenized):
+    #     # Sample one sentence from abstract
+    #     source_sentence = random.choice(source_abstract_tokenized)
+    # else:
+    #     continue # Empty abstract, skip
 
+    source_sentence = source_abstract
     if len(source_sentence) <= 20 or not source_sentence.endswith('.'):
         continue # Empty/short sentence, skip
 
