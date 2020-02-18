@@ -70,7 +70,7 @@ for index, source_row in source_df.iterrows():
 
         elif annotation_token.lower() == 'n':
             annotation = 'NotEnoughInfo'
-            source_evidence = ''
+            used_sentences[0] = ''
         else: 
             invalid_input = True
             print('Invalid annotation input detected. Try again.')
