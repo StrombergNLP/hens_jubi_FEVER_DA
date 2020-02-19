@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import re
 
+# This version works!
 
 print('Loading file...')
 tree = ET.parse('data/dawiki-latest-pages-articles-multistream.xml')
