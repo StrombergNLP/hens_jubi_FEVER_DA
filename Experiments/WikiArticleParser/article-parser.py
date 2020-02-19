@@ -19,7 +19,8 @@ start_time = datetime.now()
 
 for index, mother in enumerate(root):
     if mother.tag == 'page':
-        print('Step {}'.format(counter), end='\r')
+        if counter % 1000 == 0:
+            print('Step {}'.format(counter), end='\r')
 
         title_tag = mother.find('title')
 
@@ -65,9 +66,9 @@ for index, mother in enumerate(root):
 
         # Store them as linked_entities 
         for l in links:
-            l = re.sub(r"(?<!\\)\|.*", '', l)
-            l = l.replace(' ', '_').strip()
-            linked_entities.append(l)
+            linked_entity = re.sub(r"(?<!\\)\|.*", '', l)
+            linked_entity = linked_entity.replace(' ', '_').strip()
+            linked_entities.append(linked_entity)
             # Clean the abstract
             clean_l = re.sub(r".*(?<!\\)\|", '', l)
             abstract = abstract.replace('[['+l+']]', clean_l)
@@ -82,7 +83,7 @@ for index, mother in enumerate(root):
 print('')
 print("{} 'hjælp' or 'wikipedia' titles".format(title_fault))
 print('{} redirect pages'.format(redirect))
-print('{} empty abstracts of {}'.format(faults, counter))
+print('{} empty abstracts of {}'.format(faults, counter-1))
 df.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
 print('Saved {} articles to file.'.format(len(df['Title'])))
 
