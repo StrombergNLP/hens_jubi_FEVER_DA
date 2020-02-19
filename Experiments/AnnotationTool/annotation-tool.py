@@ -1,6 +1,6 @@
 from datetime import datetime
 import pandas as pd
-import random, re, ftfy
+import random, re
 
 source_df = pd.read_json('data/data-dictionary-small.jsonl', lines=True)
 source_df = source_df[['claim', 'entity', 'evidence', 'dictionary']]
@@ -9,9 +9,6 @@ print('{} rows loaded in claims.'.format(len(source_df['claim'])))
 annotation_df = pd.DataFrame()
 source_df = source_df.sample(frac=1) # Shuffling the rows 
 counter = 1
-
-def niceprint(text):
-    print(ftfy.fix_text(text))
 
 for index, source_row in source_df.iterrows():
     print('')
@@ -25,18 +22,17 @@ for index, source_row in source_df.iterrows():
     counter += 1
 
     print('Source entity:')
-    niceprint(source_entity)
+    print(source_entity)
     print('Source claim:')
-    niceprint(source_claim)
+    print(source_claim)
     print('Source evidence:')
-    niceprint(source_evidence)
+    print(source_evidence)
     print('')
 
     print('------- DICTIONARY -------\n')
 
     for index, pair in enumerate(source_dict):
         abstract = pair['abstract']
-        abstract = ftfy.fix_text(abstract)
         print('[{}] {}\n'.format(index, abstract))
 
     print('-------- ANNOTATE --------\n')

@@ -4,7 +4,7 @@ import re
 import urllib.parse
 from ftfy import fix_text
 
-n_files = 1
+n_files = 6
 out_df = pd.DataFrame()
 start_time = datetime.now()
 
@@ -14,8 +14,6 @@ for n in range(n_files):
 
     source_df = pd.read_json('data/wiki_{:02d}'.format(n), lines=True)
     source_df = source_df[['title', 'text']]
-
-   #  source_df['title'] = source_df['title'].str.replace(' ', '_')
 
     for index, row in source_df.iterrows():
 
