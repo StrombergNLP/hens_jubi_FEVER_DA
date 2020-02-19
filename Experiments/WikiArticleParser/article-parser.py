@@ -2,8 +2,9 @@ from datetime import datetime
 import pandas as pd
 import re
 import urllib.parse
+from ftfy import fix_text
 
-n_files = 6
+n_files = 1
 out_df = pd.DataFrame()
 start_time = datetime.now()
 
@@ -14,13 +15,14 @@ for n in range(n_files):
     source_df = pd.read_json('data/wiki_{:02d}'.format(n), lines=True)
     source_df = source_df[['title', 'text']]
 
-    source_df['title'] = source_df['title'].str.replace(' ', '_')
+   #  source_df['title'] = source_df['title'].str.replace(' ', '_')
 
     for index, row in source_df.iterrows():
 
         print('Step {}/{}'.format(index, len(source_df['title'])), end='\r')
 
         title = row['title']
+        title = fix_text(title).replace(' ', '_')
         linked_entities = []
 
         # Handle entire article
@@ -28,7 +30,8 @@ for n in range(n_files):
         abstract = ''
         rawtext = rawtext.splitlines()
         abstract = rawtext[2].strip() if len(rawtext) > 2 else '' # First sentence is at index 2
-        
+        abstract = fix_text(abstract)
+
         if abstract == '':
             continue
 
@@ -40,7 +43,7 @@ for n in range(n_files):
         for link in links:
             linked_entity = link[1]
             linked_entity = urllib.parse.unquote(linked_entity)
-            linked_entity = linked_entity.strip().replace(' ', '_')
+            linked_entity = fix_text(linked_entity).strip().replace(' ', '_')
             linked_entities.append(linked_entity)
             # Clean the abstract
             abstract = abstract.replace(link[0], link[2])
