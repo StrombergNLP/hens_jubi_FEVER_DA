@@ -1,6 +1,6 @@
 from datetime import datetime
 import pandas as pd
-import random
+import random, ftfy
 
 # source_df = pd.read_csv('data/dawiki-latest-abstract.csv')
 source_df = pd.read_json('data/data.jsonl', lines=True)
@@ -9,6 +9,9 @@ print('{} rows loaded.\n'.format(len(source_df['claim'])))
 
 mutations_df = pd.DataFrame()
 counter = 1
+
+def niceprint(text):
+    print(ftfy.fix_text(text))
 
 for index, source_row in source_df.iterrows():
     print('\n------- MUTATION OF CLAIM NUMBER {}/{} -------\n'.format(counter, len(source_df['claim'])))
@@ -22,10 +25,10 @@ for index, source_row in source_df.iterrows():
     # Save original claim 
     mutations_df = mutations_df.append({'claim': source_claim, 'entity': source_entity, 'evidence': source_evidence, 'linked entities': source_linked_entities}, ignore_index=True)
      
+    print('Source entity:')
+    niceprint(source_entity)
     print('Source claim:')
-    print(source_claim)
-    print('Source Entity:')
-    print(source_entity)
+    niceprint(source_claim)
     print('')
 
     quit_flag = False

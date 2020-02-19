@@ -1,6 +1,6 @@
 from datetime import datetime
 import pandas as pd
-import random, nltk
+import random, ftfy
 
 source_df = pd.read_json('data/dawiki-articles-sample.jsonl', lines=True)
 source_df = source_df[['Title', 'Abstract', 'Linked Entities']]
@@ -8,6 +8,9 @@ print('{} rows loaded.'.format(len(source_df['Title'])))
 
 claims_df = pd.DataFrame()
 counter = 1
+
+def niceprint(text):
+    print(ftfy.fix_text(text))
 
 while True:
     source_row = source_df.sample(1) # Sample one row
@@ -20,9 +23,9 @@ while True:
     print('\n------- CLAIM NUMBER {} -------\n'.format(counter))
 
     print('Source entity:')
-    print(source_title)
+    niceprint(source_title)
     print('Source sentence:')
-    print(source_sentence)
+    niceprint(source_abstract)
     print('')
 
     user_input = input("Enter claim, hit enter to skip or write 'quit'\n")
