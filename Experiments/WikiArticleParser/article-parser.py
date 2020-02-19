@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 import re
 
+
 print('Loading file...')
 tree = ET.parse('data/dawiki-latest-pages-articles-multistream.xml')
 # tree = ET.parse('data/dawiki-test-file.xml')
@@ -14,68 +15,66 @@ faults = 0
 title_fault = 0
 redirect = 0
 
+start_time = datetime.now()
+
 for index, mother in enumerate(root):
     if mother.tag == 'page':
         print('Step {}'.format(counter), end='\r')
 
-        for child in mother:
-            linked_entities = []
+        title_tag = mother.find('title')
 
-            if child.tag == 'title':
-                title = child.text
-                title = title.replace(' ', '_')
+        linked_entities = []
 
-                if 'Hjælp:' in title or 'Wikipedia:' in title: 
-                    title_fault += 1
-                    break
+        title = title_tag.text
+        title = title.replace(' ', '_')
 
-            elif child.tag == 'revision':
+        if 'Hjælp:' in title or 'Wikipedia:' in title: 
+            title_fault += 1
+            continue
 
-                for grandchild in child:
-                    if grandchild.tag == 'text':
-                        # Handle entire article
-                        rawtext = grandchild.text
-                        rawtext = re.sub(r"(\[\[File?:.*)|({{.*}})", '',rawtext)
+        revision_tag = mother.find('revision')
 
-                        regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&/?gt;)|('''?)|(^:.*)"
-                        cleantext = re.sub(regex, '', rawtext).strip()
-                        regex = r"(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
-                        cleantext = re.sub(regex, '', cleantext, flags=re.MULTILINE|re.DOTALL).strip()
+        text_tag = revision_tag.find('text')
+        # Handle entire article
+        rawtext = text_tag.text
+        rawtext = re.sub(r"(\[\[File?:.*)|({{.*}})", '',rawtext)
 
-                        if '#redirect' in cleantext.lower():
-                            redirect += 1
-                            break
-                        
-                        abstract = ''
-                        cleantext = cleantext.splitlines()
-                        for line in cleantext: 
-                            if len(line) > 10:
-                                abstract = line
-                                break
-                        
-                        if abstract == '':
-                            faults += 1
-                            break
+        regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&/?gt;)|('''?)|(^:.*)"
+        cleantext = re.sub(regex, '', rawtext).strip()
+        regex = r"(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
+        cleantext = re.sub(regex, '', cleantext, flags=re.MULTILINE|re.DOTALL).strip()
 
-                        # Handle linked entities in that line
-                        regex = r"\[\[(.*?)\]\]"
-                        links = re.findall(regex, abstract)
+        if '#redirect' in cleantext.lower():
+            redirect += 1
+            continue
+        
+        abstract = ''
+        cleantext = cleantext.splitlines()
+        for line in cleantext: 
+            if len(line) > 10:
+                abstract = line
+                break
+        
+        if abstract == '':
+            faults += 1
+            continue
 
-                        # Store them as linked_entities 
-                        for l in links:
-                            l = re.sub(r"(?<!\\)\|.*", '', l)
-                            l = l.replace(' ', '_').strip()
-                            linked_entities.append(l)
+        # Handle linked entities in that line
+        regex = r"\[\[(.*?)\]\]"
+        links = re.findall(regex, abstract)
 
-                        # Clean the abstract
-                        for l in links:
-                            clean_l = re.sub(r".*(?<!\\)\|", '', l)
-                            abstract = abstract.replace('[['+l+']]', clean_l)
+        # Store them as linked_entities 
+        for l in links:
+            l = re.sub(r"(?<!\\)\|.*", '', l)
+            l = l.replace(' ', '_').strip()
+            linked_entities.append(l)
+            # Clean the abstract
+            clean_l = re.sub(r".*(?<!\\)\|", '', l)
+            abstract = abstract.replace('[['+l+']]', clean_l)
 
-
-                        df = df.append({'Title': title, 'Abstract': abstract, 'Linked Entities': linked_entities}, ignore_index=True)
-                            
-                        counter +=1
+        df = df.append({'Title': title, 'Abstract': abstract, 'Linked Entities': linked_entities}, ignore_index=True)
+            
+        counter +=1
 
     if counter == 10001:
         break 
@@ -86,3 +85,5 @@ print('{} redirect pages'.format(redirect))
 print('{} empty abstracts of {}'.format(faults, counter))
 df.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
 print('Saved {} articles to file.'.format(len(df['Title'])))
+
+print('Parsing took {}'.format(datetime.now()-start_time))
