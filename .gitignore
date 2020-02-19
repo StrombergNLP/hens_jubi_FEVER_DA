@@ -207,3 +207,7 @@ dmypy.json
 .history
 
 # End of https://www.gitignore.io/api/python,intellij,visualstudiocode
+
+# Custom
+
+wiki-pages/
