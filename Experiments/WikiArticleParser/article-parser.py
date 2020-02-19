@@ -1,91 +1,54 @@
 from datetime import datetime
-import xml.etree.ElementTree as ET
 import pandas as pd
 import re
+import urllib.parse
 
-# This version works!
-
-print('Loading file...')
-tree = ET.parse('data/dawiki-latest-pages-articles-multistream.xml')
-# tree = ET.parse('data/dawiki-test-file.xml')
-root = tree.getroot()
-
-df = pd.DataFrame()
-counter = 1
-faults = 0
-title_fault = 0
-redirect = 0
-
+n_files = 6
+out_df = pd.DataFrame()
 start_time = datetime.now()
 
-for index, mother in enumerate(root):
-    if mother.tag == 'page':
-        if counter % 1000 == 0:
-            print('Step {}'.format(counter), end='\r')
+for n in range(n_files):
 
-        title_tag = mother.find('title')
+    print('Loading file {}...'.format(n))
 
+    source_df = pd.read_json('data/wiki_{:02d}'.format(n), lines=True)
+    source_df = source_df[['title', 'text']]
+
+    source_df['title'] = source_df['title'].str.replace(' ', '_')
+
+    for index, row in source_df.iterrows():
+
+        print('Step {}/{}'.format(index, len(source_df['title'])), end='\r')
+
+        title = row['title']
         linked_entities = []
 
-        title = title_tag.text
-        title = title.replace(' ', '_')
-
-        if 'Hjælp:' in title or 'Wikipedia:' in title: 
-            title_fault += 1
-            continue
-
-        revision_tag = mother.find('revision')
-
-        text_tag = revision_tag.find('text')
         # Handle entire article
-        rawtext = text_tag.text
-        rawtext = re.sub(r"(\[\[File?:.*)|({{.*}})", '',rawtext)
-
-        regex = r"(^\|.*)|({{[^}]*}*)|(&lt;.*?&/?gt;)|('''?)|(^:.*)"
-        cleantext = re.sub(regex, '', rawtext).strip()
-        regex = r"(^\s*==.*)|<\s*[^>]*>(.*?)<\s*/\s*\w+>"
-        cleantext = re.sub(regex, '', cleantext, flags=re.MULTILINE|re.DOTALL).strip()
-
-        if '#redirect' in cleantext.lower():
-            redirect += 1
-            continue
-        
+        rawtext = row['text']    
         abstract = ''
-        cleantext = cleantext.splitlines()
-        for line in cleantext: 
-            if len(line) > 10:
-                abstract = line
-                break
+        rawtext = rawtext.splitlines()
+        abstract = rawtext[2].strip() if len(rawtext) > 2 else '' # First sentence is at index 2
         
         if abstract == '':
-            faults += 1
             continue
 
         # Handle linked entities in that line
-        regex = r"\[\[(.*?)\]\]"
+        regex = r"(<a href=\"(.+?)\">(.+?)</a>)"
         links = re.findall(regex, abstract)
 
         # Store them as linked_entities 
-        for l in links:
-            linked_entity = re.sub(r"(?<!\\)\|.*", '', l)
-            linked_entity = linked_entity.replace(' ', '_').strip()
+        for link in links:
+            linked_entity = link[1]
+            linked_entity = urllib.parse.unquote(linked_entity)
+            linked_entity = linked_entity.strip().replace(' ', '_')
             linked_entities.append(linked_entity)
             # Clean the abstract
-            clean_l = re.sub(r".*(?<!\\)\|", '', l)
-            abstract = abstract.replace('[['+l+']]', clean_l)
+            abstract = abstract.replace(link[0], link[2])
 
-        df = df.append({'Title': title, 'Abstract': abstract, 'Linked Entities': linked_entities}, ignore_index=True)
-            
-        counter +=1
-
-    if counter == 10001:
-        break 
+        out_df = out_df.append({'Title': title, 'Abstract': abstract, 'Linked Entities': linked_entities}, ignore_index=True)
 
 print('')
-print("{} 'hjælp' or 'wikipedia' titles".format(title_fault))
-print('{} redirect pages'.format(redirect))
-print('{} empty abstracts of {}'.format(faults, counter-1))
-df.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
-print('Saved {} articles to file.'.format(len(df['Title'])))
+out_df.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
+print('Saved {} articles to file.'.format(len(out_df['Title'])))
 
 print('Parsing took {}'.format(datetime.now()-start_time))
