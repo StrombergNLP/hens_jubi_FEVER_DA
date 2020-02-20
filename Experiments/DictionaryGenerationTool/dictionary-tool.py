@@ -2,27 +2,22 @@ import pandas as pd
 from datetime import datetime
 
 print('Reading files...')
-wiki_articles = pd.read_json('data/dawiki-dictionary-sample-large.jsonl', lines=True)
-mutations = pd.read_json('data/mutations-sample.jsonl', lines=True)
+wiki_articles = pd.read_json('data/dawiki-latest-pages-articles-parsed.jsonl', lines=True)
+mutations = pd.read_json('data/data.jsonl', lines=True)
 
 df_dictionary = pd.DataFrame()
 
 def lookup(entity, value):
     # lower case the search to avoid silly bugs 
     row = wiki_articles.loc[wiki_articles['Title'].str.lower() == entity.lower()]
-
-    if value == 'Linked Entities': 
-        return row[value].values[0] if row[value].values.size else []
-    else:
-        return row[value].values[0] if row[value].values.size else ''
+    return row[value].values[0] if row[value].values.size else ''
 
 print('Making dictionary...')
 counter = 1
 # Lookup mutation entity in articles
 for index, row in mutations.iterrows():
     print('Step {}/{}'.format(counter, len(mutations)), end='\r')
-    entity = row['entity']
-    linked_entities = lookup(entity, 'Linked Entities')
+    linked_entities = row['linked entities']
     # print('{} linked entities found for {}'.format(len(linked_entities), entity))
 
     dictionary = []
@@ -37,11 +32,10 @@ for index, row in mutations.iterrows():
             dictionary.append(dictionary_entry)
         
     # Final structure {'entity': ..., 'claim:' ..., 'evidence': ..., [{'entity1': ...}, {'entity2': ...}, ... {'entityN': ...}]}
-    df_dictionary = df_dictionary.append({'claim': row['claim'], 'entity': entity, 'evidence': row['evidence'], 'dictionary': dictionary }, ignore_index=True)
+    df_dictionary = df_dictionary.append({'claim': row['claim'], 'entity': row['entity'], 'evidence': row['evidence'], 'dictionary': dictionary }, ignore_index=True)
     counter += 1
 
 print('')
-print(df_dictionary.loc[df_dictionary['entity'].str.lower() == 'afføring'])
 df_dictionary.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
 print('Saved {} claims+dictionaries to file.'.format(len(df_dictionary['entity'])))
 
