@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import datetime
 
 print('Reading files...')
-wiki_articles = pd.read_json('data/dawiki-latest-pages-articles-parsed.jsonl', lines=True)
+wiki_articles = pd.read_json('../CommonData/dawiki-latest-pages-articles-parsed.jsonl', lines=True)
 mutations = pd.read_json('data/data.jsonl', lines=True)
 
 df_dictionary = pd.DataFrame()
