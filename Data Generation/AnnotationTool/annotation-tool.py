@@ -2,7 +2,7 @@ from datetime import datetime
 import pandas as pd
 import random, re
 
-source_df = pd.read_json('data/data-dictionary-small.jsonl', lines=True)
+source_df = pd.read_json('data/data.jsonl', lines=True)
 source_df = source_df[['claim', 'entity', 'evidence', 'dictionary']]
 print('{} rows loaded in claims.'.format(len(source_df['claim'])))
 
