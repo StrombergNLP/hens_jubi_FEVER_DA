@@ -14,30 +14,31 @@ def lookup(entity, value):
 
 print('Making dictionary...')
 counter = 1
+entity = ''
 # Lookup mutation entity in articles
 for index, row in mutations.iterrows():
     print('Step {}/{}'.format(counter, len(mutations)), end='\r')
-    linked_entities = row['linked entities']
-    # print('{} linked entities found for {}'.format(len(linked_entities), entity))
+    if entity !=  row['entity']:
+        entity = row['entity']
+        linked_entities = row['linked entities']
+        dictionary = []
 
-    dictionary = []
+        # For every linked entity, look up in articles to find the abstract 
+        for link in linked_entities: 
+            abstract = lookup(link, 'Abstract')
 
-    # For every linked entity, look up in articles to find the abstract 
-    for link in linked_entities: 
-        abstract = lookup(link, 'Abstract')
-
-        # Save abstracts with mutation 
-        if abstract != '':
-            dictionary_entry = {'entity': link, 'abstract': abstract}
-            dictionary.append(dictionary_entry)
-        
-    # Final structure {'entity': ..., 'claim:' ..., 'evidence': ..., [{'entity1': ...}, {'entity2': ...}, ... {'entityN': ...}]}
-    df_dictionary = df_dictionary.append({'claim': row['claim'], 'entity': row['entity'], 'evidence': row['evidence'], 'dictionary': dictionary }, ignore_index=True)
+            # Save abstracts with mutation 
+            if abstract != '':
+                dictionary_entry = {'entity': link, 'abstract': abstract}
+                dictionary.append(dictionary_entry)
+            
+        # Final structure {'entity': ..., 'claim:' ..., 'evidence': ..., [{'entity1': ...}, {'entity2': ...}, ... {'entityN': ...}]}
+    df_dictionary = df_dictionary.append({'claim': row['claim'], 'entity': entity, 'evidence': row['evidence'], 'dictionary': dictionary }, ignore_index=True)
     counter += 1
 
 print('')
 df_dictionary.to_json('out/{}.jsonl'.format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")), orient='records', lines=True)
-print('Saved {} claims+dictionaries to file.'.format(len(df_dictionary['entity'])))
+print('Saved {} claims + dictionaries to file.'.format(len(df_dictionary['entity'])))
 
 
 
