@@ -2,7 +2,7 @@ from datetime import datetime
 import pandas as pd
 import random
 
-source_df = pd.read_json('data/dawiki-articles-sample.jsonl', lines=True)
+source_df = pd.read_json('../CommonData/dawiki-latest-pages-articles-parsed.jsonl', lines=True)
 source_df = source_df[['Title', 'Abstract', 'Linked Entities']]
 print('{} rows loaded.'.format(len(source_df['Title'])))
 
