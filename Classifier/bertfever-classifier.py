@@ -159,22 +159,23 @@ def validation_epoch():
     model.eval()
     for batch in validation_dataloader: 
         batch_input_ids, batch_attention_masks, batch_labels, batch_token_type_ids = batch      # Unpack input from dataloader
+        print('Batch with size: {}'.format(len(batch_labels)))
 
         with torch.no_grad():       # Not computing gradients, saving memory and time 
             model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)
-            logits = model_output[0]
+            logits = model_output[1]
         
-        # micro_f1 = calculate_fscore(logits, batch_labels, 'micro')
-        # macro_f1 = calculate_fscore(logits, batch_labels, 'macro')
-        # print('Micro f1: {}'.format(micro_f1))
-        # print('Macro f1: {}'.format(macro_f1))
+        micro_f1 = calculate_fscore(logits, batch_labels, 'micro')
+        macro_f1 = calculate_fscore(logits, batch_labels, 'macro')
+        print('Micro f1: {}'.format(micro_f1))
+        print('Macro f1: {}'.format(macro_f1))
 
 def train_model():
 
     for epoch in range(NUM_EPOCHS):
-        print('Training epoch {}'.format(epoch))
+        print('... Training epoch {}'.format(epoch+1))
         training_epoch()
-        print('Validating epoch {}'.format(epoch))
+        print('... Validating epoch {}'.format(epoch+1))
         validation_epoch()
 
 def calculate_fscore(logits, batch_labels, average):
