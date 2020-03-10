@@ -3,8 +3,12 @@ import json
 from datetime import datetime
 from transformers import BertTokenizer
 from keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
 
-# Method definitions
+#--------
+# Method Definitions
+#--------
+
 def read_config():
     """ Take the config path as a string and return the config parameters in a map """
     with open(CONFIG_PATH, 'r') as config_file:
@@ -65,7 +69,24 @@ def transform_input_ids(input_ids_0, input_ids_1, tokenizer_func):
     ))
     return transformed_ids
 
+def generate_attention_masks():
+    """ 
+    For every sequence in the input_id, generate attention masks.
+    1 for every non-zero id, 0 for padding.
+    Return attention masks as list.
+    """
+    attention_masks = list(map(lambda x: [float(i > 0) for i in x], input_ids))
+    return attention_masks
+
+def split_data(input_0, input_1):
+    """ Split data inputs to training and validation data. """
+    train_0, valid_0, train_1, valid_1 = train_test_split(input_0, input_1, random_state=1234, test_size=TEST_SIZE) # For testing purpose we are setting a specific random seed
+    return train_0, valid_0, train_1, valid_1 
+
+#--------
 # Main
+#--------
+
 start_time = datetime.now()
 
 print('Reading config...')
@@ -88,4 +109,11 @@ print('Pre-processing complete.')
 
 print('Preparing data...')
 input_ids, token_type_ids = tokenize_inputs()
+attention_masks = generate_attention_masks()
+train_inputs, validation_inputs, train_labels, validation_labels = split_data(input_ids, data_df.label)
+train_masks, validation_masks, train_token_type_ids, validation_token_type_ids = split_data(attention_masks, token_type_ids)
 print('Preparing data complete.')
+
+print('Initialising dataloader...')
+
+print('Initialising dataloader complete.')
