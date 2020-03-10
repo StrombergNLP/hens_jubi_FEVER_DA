@@ -1,6 +1,8 @@
 import pandas as pd
 import json
 from datetime import datetime
+from transformers import BertTokenizer
+from keras.preprocessing.sequence import pad_sequences
 
 # Method definitions
 def read_config():
@@ -30,6 +32,39 @@ def lookup_abstract(entity):
     abstract = row.Abstract.values[0]
     return [abstract]
 
+def concatenate_evidence():
+    """ Concatenate the evidence for each claim into one string. Edits df in place. """
+    data_df.evidence = data_df.evidence.transform(lambda x: ' '.join(x))
+
+def tokenize_inputs():
+    """ Return tokenized input ids and token type ids. """
+    tokenizer = BertTokenizer.from_pretrained(PRETRAINED_MODEL, do_lower_case=True)
+    input_ids_0 = generate_input_ids(data_df.claim, tokenizer)
+    input_ids_1 = generate_input_ids(data_df.evidence, tokenizer)
+    token_type_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.create_token_type_ids_from_sequences)
+    input_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.build_inputs_with_special_tokens) # Add special tokens like [CLS] and [SEP]
+    token_type_ids = pad_sequences(token_type_ids, maxlen=MAX_LEN, dtype='long', truncating='post', padding='post')
+    input_ids = pad_sequences(input_ids, maxlen=MAX_LEN, dtype='long', truncating='post', padding='post')
+    return input_ids, token_type_ids
+
+def generate_input_ids(sequences, tokenizer):
+    """ Take a list of sequences (claim or evidence) and a tokenizer. Return input ids for sequences as a list."""
+    tokenized_text = [tokenizer.tokenize(seq) for seq in sequences] # Borgmester -> Borg - mester
+    input_ids = [tokenizer.convert_tokens_to_ids(tokens) for tokens in tokenized_text] # Borg -> float
+    return input_ids
+
+def transform_input_ids(input_ids_0, input_ids_1, tokenizer_func):
+    """
+    Take the input ids for sequences 0 and 1 (claim and evidence) and a tokenizer function.
+    Apply function to tuples of claim-evidence.
+    Return list of token type ids.
+    """
+    transformed_ids = list(map(
+        lambda ids_tuple: tokenizer_func(ids_tuple[0], ids_tuple[1]),
+        zip(input_ids_0, input_ids_1)
+    ))
+    return transformed_ids
+
 # Main
 start_time = datetime.now()
 
@@ -46,7 +81,11 @@ print('Reading data complete. Loaded {} annotations and {} wiki articles.'.forma
 print('Pre-processing data...')
 drop_duplicate_claims()
 add_nei_evidence()
+concatenate_evidence()
 print('Pre-processing complete.')
 
-print(data_df[['evidence', 'label']])
+#print(data_df[['evidence', 'label']])
 
+print('Preparing data...')
+input_ids, token_type_ids = tokenize_inputs()
+print('Preparing data complete.')
