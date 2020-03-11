@@ -4,8 +4,7 @@
     "num_labels": 3,
     "num_epochs": 4,
     "learning_rate": 1e-4,
-    "data_path": "data/annotations-sample.jsonl",
-    "wiki_path": "data/dawiki-latest-pages-articles-parsed.jsonl",
+    "data_path": "data/annotations-no-nei.jsonl",
     "pretrained_model": "bert-base-multilingual-cased",
     "test_size": 0.1,
     "enable_plotting": 0

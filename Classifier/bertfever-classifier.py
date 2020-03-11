@@ -23,8 +23,7 @@ def read_config():
         config = json.load(config_file)
     return (config['data_path'], config['pretrained_model'], config['max_len'], 
             config['batch_size'], config['num_labels'], config['learning_rate'], 
-            config['num_epochs'], config['test_size'], config['wiki_path'], 
-            bool(config['enable_plotting']))
+            config['num_epochs'], config['test_size'], bool(config['enable_plotting']))
 
 def drop_duplicate_claims():
     """ Drops rows with duplicate values in claim column. Modifies DF in place! """
@@ -32,18 +31,6 @@ def drop_duplicate_claims():
     data_df.drop_duplicates(subset='claim', inplace=True)
     len_no_dupes = len(data_df['claim'])
     print('Dropped {} duplicate rows.'.format(len_with_dupes - len_no_dupes))
-
-def add_nei_evidence():
-    """ Add the entity's abstract as evidence to each claim with NEI label. Modifies DF in place! """
-    for index, row in data_df.iterrows():
-        if row.label == 'NotEnoughInfo':
-            row.evidence = lookup_abstract(row.entity[0])
-
-def lookup_abstract(entity):
-    """ Lookup entity in wiki dataframe and return its abstract in a list """
-    row = wiki_df[wiki_df.Title == entity]
-    abstract = row.Abstract.values[0]
-    return [abstract]
 
 def concatenate_evidence():
     """ Concatenate the evidence for each claim into one string. Edits df in place. """
@@ -126,12 +113,12 @@ def initialise_optimiser():
 
     param_optimiser = list(model.named_parameters())
     no_decay = ['bias', 'gamma', 'beta']
-    optimizer_grouped_parameters = [
-        { "params" : [p for n, p in param_optimiser if not any(nd in n for nd in no_decay)], 
-        "weight_decay_rate" : 0.01 },
-        { "params" : [p for n, p in param_optimiser if any(nd in n for nd in no_decay)], 
-        "weight_decay_rate" : 0.0 },
-    ]
+    # optimizer_grouped_parameters = [
+    #     { "params" : [p for n, p in param_optimiser if not any(nd in n for nd in no_decay)], 
+    #     "weight_decay_rate" : 0.01 },
+    #     { "params" : [p for n, p in param_optimiser if any(nd in n for nd in no_decay)], 
+    #     "weight_decay_rate" : 0.0 },
+    # ]
 
     # AdamW used to be BertAdam 
     max_grad_norm = 1.0
@@ -164,7 +151,7 @@ def validation_epoch():
     model.eval()
     for batch in validation_dataloader: 
         batch_input_ids, batch_attention_masks, batch_labels, batch_token_type_ids = batch      # Unpack input from dataloader
-        print('Batch with size: {}'.format(len(batch_labels)))
+        # print('Batch with size: {}'.format(len(batch_labels)))
 
         with torch.no_grad():       # Not computing gradients, saving memory and time 
             model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)
@@ -212,17 +199,16 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, WIKI_PATH, ENABLE_PLOTTING = read_config()
+DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING = read_config()
 print('Reading config complete.')
 
 print('Reading data...')
 data_df = pd.read_json(DATA_PATH, lines=True)
-wiki_df = pd.read_json(WIKI_PATH, lines=True)
-print('Reading data complete. Loaded {} annotations and {} wiki articles.'.format(len(data_df['claim']), len(wiki_df['Title'])))
+
+print('Reading data complete. Loaded {} annotations'.format(len(data_df['claim'])))
 
 print('Pre-processing data...')
 drop_duplicate_claims()
-add_nei_evidence()
 concatenate_evidence()
 convert_labels()
 print('Pre-processing complete.')
