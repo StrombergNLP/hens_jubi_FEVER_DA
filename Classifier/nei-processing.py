@@ -19,5 +19,5 @@ data_df = pd.read_json(DATA_PATH, lines=True)
 wiki_df = pd.read_json(WIKI_PATH, lines=True)
 add_nei_evidence()
 
-data_df.to_json('data/annotations-no-nei.jsonl', orient='records', lines=True)
+data_df.to_json('data/annotations-filled-nei.jsonl', orient='records', lines=True)
 print('Saved {} claims to file.'.format(len(data_df['claim'])))
