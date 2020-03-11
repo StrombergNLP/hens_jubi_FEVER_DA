@@ -8,7 +8,7 @@ from datetime import datetime
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 from keras.preprocessing.sequence import pad_sequences
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, confusion_matrix
 
 #--------
 # Method Definitions
@@ -141,7 +141,7 @@ def initialise_optimiser():
 
 def training_epoch():
     """
-    Perform one training epoch. 
+    Perform one training epoch. Classify training data in batches, optimise model based on the loss.
     """ 
     model.train()
 
@@ -156,6 +156,7 @@ def training_epoch():
         scheduler.step()
 
 def validation_epoch():
+    """ Perform one validation epoch. Classify validation data in batches, calculate f1 scores. """
     model.eval()
     for batch in validation_dataloader: 
         batch_input_ids, batch_attention_masks, batch_labels, batch_token_type_ids = batch      # Unpack input from dataloader
@@ -165,8 +166,10 @@ def validation_epoch():
             model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)
             logits = model_output[1]
         
-        micro_f1 = calculate_fscore(logits, batch_labels, 'micro')
-        macro_f1 = calculate_fscore(logits, batch_labels, 'macro')
+
+        preds = np.argmax(logits, axis=1).flatten()     # This gives us the flat predictions
+        micro_f1 = f1_score(batch_labels, preds, average='micro')
+        macro_f1 = f1_score(batch_labels, preds, average='macro')
         print('Micro f1: {}'.format(micro_f1))
         print('Macro f1: {}'.format(macro_f1))
 
@@ -177,15 +180,6 @@ def train_model():
         training_epoch()
         print('... Validating epoch {}'.format(epoch+1))
         validation_epoch()
-
-def calculate_fscore(logits, batch_labels, average):
-    """ 
-    Take logits, ground truth labels, and averaging method(micro/ macro). 
-    Calculate and return f1 score.
-    """
-    preds = np.argmax(logits, axis=1).flatten()     # This should give us the flat predictions
-    f1 = f1_score(batch_labels, preds, average=average)
-    return f1
 
 #--------
 # Main
