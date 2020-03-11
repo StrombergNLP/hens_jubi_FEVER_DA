@@ -163,7 +163,9 @@ def validation_epoch():
             model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)
             logits = model_output[1]
 
-        evaluate_model(logits, batch_labels)
+        micro_f1, macro_f1, c_matrix = evaluate_model(logits, batch_labels)
+    
+    return micro_f1, macro_f1, c_matrix
         
 def train_model():
 
@@ -175,25 +177,28 @@ def train_model():
         train_loss.append(loss)
 
         print('... Validating epoch {}'.format(epoch+1))
-        validation_epoch()
+        micro_f1, macro_f1, c_matrix = validation_epoch()
     
-    return train_loss
+    return train_loss, micro_f1, macro_f1, c_matrix
 
 def evaluate_model(logits, batch_labels):
     """ Use F1-score and confusion matrix to evaluate model performance"""
     preds = np.argmax(logits, axis=1).flatten()     # This gives us the flat predictions
+    
+    # F1 Score
+    micro_f1 = f1_score(batch_labels, preds, average='micro')
+    macro_f1 = f1_score(batch_labels, preds, average='macro')
 
-    if(ENABLE_PLOTTING):
-        # F1 Score
-        micro_f1 = f1_score(batch_labels, preds, average='micro')
-        macro_f1 = f1_score(batch_labels, preds, average='macro')
-        print('Micro f1: {}'.format(micro_f1))
-        print('Macro f1: {}'.format(macro_f1))
+    # Confusion matrix
+    c_matrix = confusion_matrix(batch_labels.tolist(), preds.tolist())
+    
+    if(ENABLE_PLOTTING): plot_c_matrix(c_matrix)
 
-        # Confusion matrix
-        c_matrix = confusion_matrix(batch_labels.tolist(), preds.tolist())
-        print(c_matrix)
-        plot_c_matrix(c_matrix)
+    print('Micro f1: {}'.format(micro_f1))
+    print('Macro f1: {}'.format(macro_f1))
+    print(c_matrix)
+
+    return micro_f1, macro_f1, c_matrix
 
 def plot_c_matrix(c_matrix):
     dimension = int(math.sqrt(c_matrix.size))
@@ -252,7 +257,7 @@ optimiser, scheduler = initialise_optimiser()
 print('Initialising model complete.')
 
 print('Training model...')
-train_loss = train_model()
+train_loss, micro_f1, macro_f1, c_matrix = train_model()
 print('Training model complete.')
 
 print('Plotting loss...')
