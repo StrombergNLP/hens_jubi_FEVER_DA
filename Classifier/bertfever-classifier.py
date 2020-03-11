@@ -6,12 +6,12 @@ import pandas as pd
 import numpy as np
 import seaborn as sn
 import matplotlib.pyplot as plt
+from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 from datetime import datetime
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
-from keras.preprocessing.sequence import pad_sequences
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, confusion_matrix, plot_confusion_matrix
+from sklearn.metrics import f1_score, confusion_matrix
 
 #--------
 # Method Definitions
@@ -54,8 +54,6 @@ def tokenize_inputs():
     input_ids_1 = generate_input_ids(data_df.evidence, tokenizer)
     token_type_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.create_token_type_ids_from_sequences)
     input_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.build_inputs_with_special_tokens) # Add special tokens like [CLS] and [SEP]
-    token_type_ids = pad_sequences(token_type_ids, maxlen=MAX_LEN, dtype='long', truncating='post', padding='post')
-    input_ids = pad_sequences(input_ids, maxlen=MAX_LEN, dtype='long', truncating='post', padding='post')
     return input_ids, token_type_ids
 
 def generate_input_ids(sequences, tokenizer):
@@ -97,16 +95,34 @@ def initialise_dataloader(input_ids, attention_masks, labels, token_type_ids):
     """
     Taking parameters as iterables and return a dataloader.
     """
-    input_tensor = torch.tensor(input_ids, dtype=torch.long)
-    mask_tensor = torch.tensor(attention_masks, dtype=torch.long)
+
+    input_tensor = create_padded_tensor(input_ids)
+    mask_tensor = create_padded_tensor(attention_masks)
     label_tensor = torch.tensor(labels, dtype=torch.long)
-    type_tensor = torch.tensor(token_type_ids, dtype=torch.long)
+    type_tensor = create_padded_tensor(token_type_ids)
 
     dataset = TensorDataset(input_tensor, mask_tensor, label_tensor, type_tensor)
     sampler = RandomSampler(dataset)
     dataloader = DataLoader(dataset, sampler=sampler, batch_size=BATCH_SIZE)
 
     return dataloader
+
+def create_padded_tensor(sequence):
+    """
+    Take a list of variable length lists.
+    Truncate and pad them all to MAX_LEN.
+    Return a tensor of dimensions len(sequence) * MAX_LEN.
+    """
+
+    sequence = [x[:MAX_LEN] for x in sequence]    # Truncate to MAX_LEN
+    
+    first_padding = MAX_LEN - len(sequence[0])
+    sequence[0] = sequence[0] + [0] * first_padding   # Pad first entry to MAX_LEN
+
+    sequence = [torch.tensor(x) for x in sequence]     # Turn list into tensors
+    sequence = pad_sequence(sequence, batch_first=True)     # Pad all lists of tensors to length of the largest (MAX_LEN)
+
+    return sequence
 
 def initialise_optimiser():
     """ Create optimiser with prespecified hyperparameters and return it. """
