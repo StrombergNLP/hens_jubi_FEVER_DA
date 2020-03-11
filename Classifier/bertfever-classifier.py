@@ -224,3 +224,5 @@ print('Initialising model complete.')
 print('Training model...')
 train_model()
 print('Training model complete.')
+
+print('Execution complete. Execution time: {}.'.format(datetime.now()-start_time))
