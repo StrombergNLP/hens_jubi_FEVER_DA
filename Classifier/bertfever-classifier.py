@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sn
 import matplotlib.pyplot as plt
+from tqdm import trange
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 from datetime import datetime
@@ -23,7 +24,8 @@ def read_config():
         config = json.load(config_file)
     return (config['data_path'], config['pretrained_model'], config['max_len'], 
             config['batch_size'], config['num_labels'], config['learning_rate'], 
-            config['num_epochs'], config['test_size'], bool(config['enable_plotting']))
+            config['num_epochs'], config['test_size'], bool(config['enable_plotting']), 
+            config['output_dir'])
 
 def drop_duplicate_claims():
     """ Drops rows with duplicate values in claim column. Modifies DF in place! """
@@ -129,12 +131,6 @@ def initialise_optimiser():
 
     param_optimiser = list(model.named_parameters())
     no_decay = ['bias', 'gamma', 'beta']
-    # optimizer_grouped_parameters = [
-    #     { "params" : [p for n, p in param_optimiser if not any(nd in n for nd in no_decay)], 
-    #     "weight_decay_rate" : 0.01 },
-    #     { "params" : [p for n, p in param_optimiser if any(nd in n for nd in no_decay)], 
-    #     "weight_decay_rate" : 0.0 },
-    # ]
 
     # AdamW used to be BertAdam 
     max_grad_norm = 1.0
@@ -151,7 +147,7 @@ def training_epoch():
     Perform one training epoch. Classify training data in batches, optimise model based on the loss.
     """ 
     model.train()
-    loss, total_loss, training_steps = 0, 0, 0
+    total_loss, training_steps = 0, 0
     for batch in train_dataloader:
         batch_input_ids, batch_attention_masks, batch_labels, batch_token_type_ids = batch      # Unpack input from dataloader
         optimiser.zero_grad()       # Clear gradients
@@ -164,9 +160,10 @@ def training_epoch():
 
         total_loss += loss.item()
         training_steps += 1
+        train_loss.append(loss.item())
 
     print("Train loss: {}".format(total_loss / training_steps))
-    return loss.item()
+    # return loss.item()
 
 def validation_epoch():
     """ Perform one validation epoch. Classify validation data in batches, calculate f1 scores. """
@@ -185,17 +182,11 @@ def validation_epoch():
         
 def train_model():
 
-    train_loss = []
-
-    for epoch in range(NUM_EPOCHS):
-        print('... Training epoch {}'.format(epoch+1))
-        loss = training_epoch()
-        train_loss.append(loss)
-
-        print('... Validating epoch {}'.format(epoch+1))
+    for epoch in trange(NUM_EPOCHS, desc="Epoch"):
+        training_epoch()
         micro_f1, macro_f1, c_matrix = validation_epoch()
     
-    return train_loss, micro_f1, macro_f1, c_matrix
+    return micro_f1, macro_f1, c_matrix
 
 def evaluate_model(logits, batch_labels):
     """ Use F1-score and confusion matrix to evaluate model performance"""
@@ -206,9 +197,9 @@ def evaluate_model(logits, batch_labels):
     macro_f1 = f1_score(batch_labels, preds, average='macro')
 
     # Confusion matrix
-    c_matrix = confusion_matrix(batch_labels.tolist(), preds.tolist())
+    c_matrix = confusion_matrix(batch_labels.tolist(), preds.tolist(), labels=[0, 1, 2])
     
-    if(ENABLE_PLOTTING): plot_c_matrix(c_matrix)
+    if(ENABLE_PLOTTING): plot_confusion_matrix(c_matrix)
 
     print('Micro f1: {}'.format(micro_f1))
     print('Macro f1: {}'.format(macro_f1))
@@ -216,12 +207,14 @@ def evaluate_model(logits, batch_labels):
 
     return micro_f1, macro_f1, c_matrix
 
-def plot_c_matrix(c_matrix):
-    dimension = int(math.sqrt(c_matrix.size))
-    df_cm = pd.DataFrame(c_matrix, range(dimension), range(dimension))
+def plot_confusion_matrix(c_matrix):
+    df_cm = pd.DataFrame(c_matrix, range(NUM_LABELS), range(NUM_LABELS))
+    df_cm.columns = ['R', 'S', 'NEI']
+    df_cm['Labels'] = ['R', 'S', 'NEI']
+    df_cm = df_cm.set_index('Labels')
     plt.figure(figsize=(10,7))
-    sn.set(font_scale=1.4)  # for label size
-    sn.heatmap(df_cm, cmap="Blues", annot=True, annot_kws={'size':16})    # font size
+    sn.set(font_scale=1.0)  # for label size
+    sn.heatmap(df_cm, cmap="Blues", annot=True, annot_kws={'size':10})    # font size
     plt.show()
 
 def plot_loss(train_loss):
@@ -233,6 +226,28 @@ def plot_loss(train_loss):
     plt.plot(train_loss)
     plt.show()
 
+def export_results():
+    results = {
+        'config': {
+            'data_path': DATA_PATH, 
+            'pretrained_model': PRETRAINED_MODEL, 
+            'max_len': MAX_LEN, 
+            'batch_size': BATCH_SIZE, 
+            'num_labels': NUM_LABELS, 
+            'learning_rate': LEARNING_RATE, 
+            'num_epochs': NUM_EPOCHS, 
+            'test_size' :TEST_SIZE
+        }, 
+        'loss': train_loss, 
+        'micro_f1': micro_f1, 
+        'macro_f1': macro_f1, 
+        'confusion_matrix': c_matrix.tolist()
+    }
+    filename = "{}.json".format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S"))
+    output_path = OUTPUT_DIR + filename 
+    with open(output_path, mode='w') as outfile:
+        json.dump(results, outfile)
+
 #--------
 # Main
 #--------
@@ -241,12 +256,11 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING = read_config()
+DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR = read_config()
 print('Reading config complete.')
 
 print('Reading data...')
 data_df = pd.read_json(DATA_PATH, lines=True)
-
 print('Reading data complete. Loaded {} annotations.'.format(len(data_df['claim'])))
 
 print('Pre-processing data...')
@@ -273,11 +287,16 @@ optimiser, scheduler = initialise_optimiser()
 print('Initialising model complete.')
 
 print('Training model...')
-train_loss, micro_f1, macro_f1, c_matrix = train_model()
+train_loss = []
+micro_f1, macro_f1, c_matrix = train_model()
 print('Training model complete.')
 
 print('Plotting loss...')
 plot_loss(train_loss)
 print('Plotting loss complete.')
+
+print('Exporting results to json...')
+export_results()
+print('Export complete.')
 
 print('Execution complete. Execution time: {}.'.format(datetime.now()-start_time))
