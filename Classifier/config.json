@@ -4,8 +4,8 @@
     "num_labels": 3,
     "num_epochs": 4,
     "learning_rate": 1e-4,
-    "data_path": "data/annotations-no-nei.jsonl",
+    "data_path": "data/annotations-filled-nei.jsonl",
     "pretrained_model": "bert-base-multilingual-cased",
     "test_size": 0.1,
-    "enable_plotting": 0
+    "enable_plotting": 1
 }
