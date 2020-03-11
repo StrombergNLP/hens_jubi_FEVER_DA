@@ -7,5 +7,6 @@
     "data_path": "data/annotations-sample.jsonl",
     "wiki_path": "data/dawiki-latest-pages-articles-parsed.jsonl",
     "pretrained_model": "bert-base-multilingual-cased",
-    "test_size": 0.1
+    "test_size": 0.1,
+    "enable_plotting": 0
 }

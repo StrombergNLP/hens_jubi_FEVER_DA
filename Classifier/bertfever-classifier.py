@@ -1,14 +1,17 @@
 import json
 import torch
 import transformers
+import math
 import pandas as pd
 import numpy as np
+import seaborn as sn
+import matplotlib.pyplot as plt
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 from datetime import datetime
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 from keras.preprocessing.sequence import pad_sequences
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, confusion_matrix
+from sklearn.metrics import f1_score, confusion_matrix, plot_confusion_matrix
 
 #--------
 # Method Definitions
@@ -20,7 +23,8 @@ def read_config():
         config = json.load(config_file)
     return (config['data_path'], config['pretrained_model'], config['max_len'], 
             config['batch_size'], config['num_labels'], config['learning_rate'], 
-            config['num_epochs'], config['test_size'], config['wiki_path'])
+            config['num_epochs'], config['test_size'], config['wiki_path'], 
+            bool(config['enable_plotting']))
 
 def drop_duplicate_claims():
     """ Drops rows with duplicate values in claim column. Modifies DF in place! """
@@ -165,18 +169,9 @@ def validation_epoch():
         with torch.no_grad():       # Not computing gradients, saving memory and time 
             model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)
             logits = model_output[1]
+
+        evaluate_model(logits, batch_labels)
         
-        # F1 Score
-        preds = np.argmax(logits, axis=1).flatten()     # This gives us the flat predictions
-        micro_f1 = f1_score(batch_labels, preds, average='micro')
-        macro_f1 = f1_score(batch_labels, preds, average='macro')
-        print('Micro f1: {}'.format(micro_f1))
-        print('Macro f1: {}'.format(macro_f1))
-
-        # Confusion matrix
-        confusion_matrix = confusion_matrix(batch_labels.tolist(), preds.tolist())
-        print(confusion_matrix)
-
 def train_model():
 
     for epoch in range(NUM_EPOCHS):
@@ -184,6 +179,30 @@ def train_model():
         training_epoch()
         print('... Validating epoch {}'.format(epoch+1))
         validation_epoch()
+
+def evaluate_model(logits, batch_labels):
+    """ Use F1-score and confusion matrix to evaluate model performance"""
+    preds = np.argmax(logits, axis=1).flatten()     # This gives us the flat predictions
+
+    if(ENABLE_PLOTTING):
+        # F1 Score
+        micro_f1 = f1_score(batch_labels, preds, average='micro')
+        macro_f1 = f1_score(batch_labels, preds, average='macro')
+        print('Micro f1: {}'.format(micro_f1))
+        print('Macro f1: {}'.format(macro_f1))
+
+        # Confusion matrix
+        c_matrix = confusion_matrix(batch_labels.tolist(), preds.tolist())
+        print(c_matrix)
+        plot_c_matrix(c_matrix)
+
+def plot_c_matrix(c_matrix):
+    dimension = int(math.sqrt(c_matrix.size))
+    df_cm = pd.DataFrame(c_matrix, range(dimension), range(dimension))
+    plt.figure(figsize=(10,7))
+    sn.set(font_scale=1.4)  # for label size
+    sn.heatmap(df_cm, annot=True, annot_kws={'size':16})    # font size
+    plt.show()
 
 #--------
 # Main
@@ -193,7 +212,7 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, WIKI_PATH = read_config()
+DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, WIKI_PATH, ENABLE_PLOTTING = read_config()
 print('Reading config complete.')
 
 print('Reading data...')
