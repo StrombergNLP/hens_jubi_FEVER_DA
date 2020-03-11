@@ -135,7 +135,7 @@ def training_epoch():
     Perform one training epoch. Classify training data in batches, optimise model based on the loss.
     """ 
     model.train()
-
+    loss, total_loss, training_steps = 0, 0, 0
     for batch in train_dataloader:
         batch_input_ids, batch_attention_masks, batch_labels, batch_token_type_ids = batch      # Unpack input from dataloader
         optimiser.zero_grad()       # Clear gradients
@@ -145,6 +145,12 @@ def training_epoch():
         loss.backward()     # Backward pass 
         optimiser.step()
         scheduler.step()
+
+        total_loss += loss.item()
+        training_steps += 1
+
+    print("Train loss: {}".format(total_loss / training_steps))
+    return loss.item()
 
 def validation_epoch():
     """ Perform one validation epoch. Classify validation data in batches, calculate f1 scores. """
@@ -161,11 +167,17 @@ def validation_epoch():
         
 def train_model():
 
+    train_loss = []
+
     for epoch in range(NUM_EPOCHS):
         print('... Training epoch {}'.format(epoch+1))
-        training_epoch()
+        loss = training_epoch()
+        train_loss.append(loss)
+
         print('... Validating epoch {}'.format(epoch+1))
         validation_epoch()
+    
+    return train_loss
 
 def evaluate_model(logits, batch_labels):
     """ Use F1-score and confusion matrix to evaluate model performance"""
@@ -188,7 +200,16 @@ def plot_c_matrix(c_matrix):
     df_cm = pd.DataFrame(c_matrix, range(dimension), range(dimension))
     plt.figure(figsize=(10,7))
     sn.set(font_scale=1.4)  # for label size
-    sn.heatmap(df_cm, annot=True, annot_kws={'size':16})    # font size
+    sn.heatmap(df_cm, cmap="Blues", annot=True, annot_kws={'size':16})    # font size
+    plt.show()
+
+def plot_loss(train_loss):
+    """ Plot loss after training the model"""
+    plt.figure(figsize=(15,8))
+    plt.title("Training loss")
+    plt.xlabel("Batch")
+    plt.ylabel("Loss")
+    plt.plot(train_loss)
     plt.show()
 
 #--------
@@ -205,7 +226,7 @@ print('Reading config complete.')
 print('Reading data...')
 data_df = pd.read_json(DATA_PATH, lines=True)
 
-print('Reading data complete. Loaded {} annotations'.format(len(data_df['claim'])))
+print('Reading data complete. Loaded {} annotations.'.format(len(data_df['claim'])))
 
 print('Pre-processing data...')
 drop_duplicate_claims()
@@ -231,7 +252,11 @@ optimiser, scheduler = initialise_optimiser()
 print('Initialising model complete.')
 
 print('Training model...')
-train_model()
+train_loss = train_model()
 print('Training model complete.')
+
+print('Plotting loss...')
+plot_loss(train_loss)
+print('Plotting loss complete.')
 
 print('Execution complete. Execution time: {}.'.format(datetime.now()-start_time))
