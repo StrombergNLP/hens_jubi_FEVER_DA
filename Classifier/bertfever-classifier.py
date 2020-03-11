@@ -166,12 +166,16 @@ def validation_epoch():
             model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)
             logits = model_output[1]
         
-
+        # F1 Score
         preds = np.argmax(logits, axis=1).flatten()     # This gives us the flat predictions
         micro_f1 = f1_score(batch_labels, preds, average='micro')
         macro_f1 = f1_score(batch_labels, preds, average='macro')
         print('Micro f1: {}'.format(micro_f1))
         print('Macro f1: {}'.format(macro_f1))
+
+        # Confusion matrix
+        confusion_matrix = confusion_matrix(batch_labels.tolist(), preds.tolist())
+        print(confusion_matrix)
 
 def train_model():
 
