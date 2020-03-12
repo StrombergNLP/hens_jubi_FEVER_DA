@@ -1,14 +1,15 @@
 {
     "max_len": 250,
-    "batch_size": 4,
+    "batch_size": 16,
     "num_labels": 3,
     "num_epochs": 4,
     "learning_rate": 1e-4,
     "data_path": "data/annotations-filled-nei.jsonl",
-    "data_sample": 200,
+    "data_sample": 0,
     "pretrained_model": "bert-base-multilingual-cased",
     "test_size": 0.1,
     "enable_plotting": 0,
     "skip_training": 0,
-    "output_dir": "out/"
+    "output_dir": "out/",
+    "enable_cuda": 0
 }

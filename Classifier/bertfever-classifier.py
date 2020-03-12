@@ -26,7 +26,7 @@ def read_config():
     return (config['data_path'], config['pretrained_model'], config['max_len'], 
             config['batch_size'], config['num_labels'], config['learning_rate'], 
             config['num_epochs'], config['test_size'], bool(config['enable_plotting']), 
-            config['output_dir'], bool(config['skip_training']), config['data_sample'])
+            config['output_dir'], bool(config['skip_training']), config['data_sample'], bool(config['enable_cuda']))
 
 def check_output_path():
     """ Check that output path exists, otherwise create it. """
@@ -105,10 +105,11 @@ def initialise_dataloader(input_ids, attention_masks, labels, token_type_ids):
     Taking parameters as iterables and return a dataloader.
     """
 
-    input_tensor = create_padded_tensor(input_ids).cuda()
-    mask_tensor = create_padded_tensor(attention_masks).cuda()
-    label_tensor = torch.tensor(labels, dtype=torch.long).cuda()
-    type_tensor = create_padded_tensor(token_type_ids).cuda()
+    input_tensor = create_padded_tensor(input_ids)
+    mask_tensor = create_padded_tensor(attention_masks)
+    type_tensor = create_padded_tensor(token_type_ids)
+    label_tensor = torch.tensor(labels, dtype=torch.long)
+    if ENABLE_CUDA: label_tensor = label_tensor.cuda()
 
     dataset = TensorDataset(input_tensor, mask_tensor, label_tensor, type_tensor)
     sampler = RandomSampler(dataset)
@@ -130,6 +131,8 @@ def create_padded_tensor(sequence):
 
     sequence = [torch.tensor(x) for x in sequence]     # Turn list into tensors
     sequence = pad_sequence(sequence, batch_first=True)     # Pad all lists of tensors to length of the largest (MAX_LEN)
+
+    if ENABLE_CUDA: sequence = sequence.cuda()
 
     return sequence
 
@@ -243,13 +246,16 @@ def export_results():
     results = {
         'config': {
             'data_path': DATA_PATH, 
+            'data_sample': DATA_SAMPLE,
             'pretrained_model': PRETRAINED_MODEL, 
             'max_len': MAX_LEN, 
             'batch_size': BATCH_SIZE, 
             'num_labels': NUM_LABELS, 
             'learning_rate': LEARNING_RATE, 
+            'skip_training': SKIP_TRAINING,
             'num_epochs': NUM_EPOCHS, 
-            'test_size' :TEST_SIZE
+            'test_size' : TEST_SIZE,
+            'enable_cuda': ENABLE_CUDA
         }, 
         'loss': train_loss, 
         'micro_f1': micro_f1, 
@@ -269,7 +275,7 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE = read_config()
+DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE, ENABLE_CUDA = read_config()
 check_output_path()
 print('Reading config complete.')
 
@@ -297,7 +303,8 @@ validation_dataloader = initialise_dataloader(validation_inputs, validation_mask
 print('Initialising dataloader complete.')
 
 print('Initialising model...')
-model = BertForSequenceClassification.from_pretrained(PRETRAINED_MODEL, num_labels=NUM_LABELS).cuda()
+model = BertForSequenceClassification.from_pretrained(PRETRAINED_MODEL, num_labels=NUM_LABELS)
+if ENABLE_CUDA: model = model.cuda()
 optimiser, scheduler = initialise_optimiser()
 print('Initialising model complete.')
 
