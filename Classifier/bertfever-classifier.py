@@ -1,4 +1,5 @@
 import json
+import os
 import torch
 import transformers
 import math
@@ -19,13 +20,19 @@ from sklearn.metrics import f1_score, confusion_matrix
 #--------
 
 def read_config():
-    """ Take the config path as a string and return the config parameters in a map """
+    """ Take the config path as a string and return the config parameters in a map. """
     with open(CONFIG_PATH, 'r') as config_file:
         config = json.load(config_file)
     return (config['data_path'], config['pretrained_model'], config['max_len'], 
             config['batch_size'], config['num_labels'], config['learning_rate'], 
             config['num_epochs'], config['test_size'], bool(config['enable_plotting']), 
             config['output_dir'], bool(config['skip_training']))
+
+def check_output_path():
+    """ Check that output path exists, otherwise create it. """
+    if not os.path.isdir(OUTPUT_DIR):
+        os.mkdir(OUTPUT_DIR)
+        print('Output directory was not found. Created /{}.'.format(OUTPUT_DIR))
 
 def drop_duplicate_claims():
     """ Drops rows with duplicate values in claim column. Modifies DF in place! """
@@ -266,6 +273,7 @@ start_time = datetime.now()
 print('Reading config...')
 CONFIG_PATH = 'config.json'
 DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING = read_config()
+check_output_path()
 print('Reading config complete.')
 
 print('Reading data...')
