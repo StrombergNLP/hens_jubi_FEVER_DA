@@ -8,5 +8,6 @@
     "pretrained_model": "bert-base-multilingual-cased",
     "test_size": 0.1,
     "enable_plotting": 1,
+    "skip_training": 0,
     "output_dir": "out/"
 }

@@ -25,7 +25,7 @@ def read_config():
     return (config['data_path'], config['pretrained_model'], config['max_len'], 
             config['batch_size'], config['num_labels'], config['learning_rate'], 
             config['num_epochs'], config['test_size'], bool(config['enable_plotting']), 
-            config['output_dir'])
+            config['output_dir'], bool(config['skip_training']))
 
 def drop_duplicate_claims():
     """ Drops rows with duplicate values in claim column. Modifies DF in place! """
@@ -148,8 +148,9 @@ def training_epoch():
     """ 
     model.train()
     total_loss, training_steps = 0, 0
-    for batch in train_dataloader:
+    for index, batch in enumerate(train_dataloader):
         batch_input_ids, batch_attention_masks, batch_labels, batch_token_type_ids = batch      # Unpack input from dataloader
+        print('Training batch {} with size {}.'.format(index, batch_labels.size()[0]))
         optimiser.zero_grad()       # Clear gradients
         model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)    # Forward pass
         loss = model_output[0]
@@ -168,22 +169,30 @@ def training_epoch():
 def validation_epoch():
     """ Perform one validation epoch. Classify validation data in batches, calculate f1 scores. """
     model.eval()
-    for batch in validation_dataloader: 
+
+    epoch_labels = torch.LongTensor()
+    epoch_logits = torch.FloatTensor()
+
+    for index, batch in enumerate(validation_dataloader): 
         batch_input_ids, batch_attention_masks, batch_labels, batch_token_type_ids = batch      # Unpack input from dataloader
-        # print('Batch with size: {}'.format(len(batch_labels)))
+        print('Validation batch {} with size {}.'.format(index, batch_labels.size()[0]))
 
         with torch.no_grad():       # Not computing gradients, saving memory and time 
             model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)
             logits = model_output[1]
 
-        micro_f1, macro_f1, c_matrix = evaluate_model(logits, batch_labels)
+            # Save batch data to be able to evaluate epoch as a whole
+            epoch_labels = torch.cat((epoch_labels, batch_labels))
+            epoch_logits = torch.cat((epoch_logits, logits))
+
+    micro_f1, macro_f1, c_matrix = evaluate_model(epoch_logits, epoch_labels)
     
     return micro_f1, macro_f1, c_matrix
         
 def train_model():
 
     for epoch in trange(NUM_EPOCHS, desc="Epoch"):
-        training_epoch()
+        if not SKIP_TRAINING: training_epoch()
         micro_f1, macro_f1, c_matrix = validation_epoch()
     
     return micro_f1, macro_f1, c_matrix
@@ -256,7 +265,7 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR = read_config()
+DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING = read_config()
 print('Reading config complete.')
 
 print('Reading data...')
