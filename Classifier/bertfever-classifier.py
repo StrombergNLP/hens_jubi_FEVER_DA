@@ -277,6 +277,7 @@ print('Reading config...')
 CONFIG_PATH = 'config.json'
 DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE, ENABLE_CUDA = read_config()
 check_output_path()
+if ENABLE_CUDA: print('Using CUDA on {}.'.format(torch.cuda.get_device_name(0)))
 print('Reading config complete.')
 
 print('Reading data...')
