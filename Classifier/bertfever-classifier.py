@@ -26,7 +26,7 @@ def read_config():
     return (config['data_path'], config['pretrained_model'], config['max_len'], 
             config['batch_size'], config['num_labels'], config['learning_rate'], 
             config['num_epochs'], config['test_size'], bool(config['enable_plotting']), 
-            config['output_dir'], bool(config['skip_training']))
+            config['output_dir'], bool(config['skip_training']), config['data_sample'])
 
 def check_output_path():
     """ Check that output path exists, otherwise create it. """
@@ -105,10 +105,10 @@ def initialise_dataloader(input_ids, attention_masks, labels, token_type_ids):
     Taking parameters as iterables and return a dataloader.
     """
 
-    input_tensor = create_padded_tensor(input_ids)
-    mask_tensor = create_padded_tensor(attention_masks)
-    label_tensor = torch.tensor(labels, dtype=torch.long)
-    type_tensor = create_padded_tensor(token_type_ids)
+    input_tensor = create_padded_tensor(input_ids).cuda()
+    mask_tensor = create_padded_tensor(attention_masks).cuda()
+    label_tensor = torch.tensor(labels, dtype=torch.long).cuda()
+    type_tensor = create_padded_tensor(token_type_ids).cuda()
 
     dataset = TensorDataset(input_tensor, mask_tensor, label_tensor, type_tensor)
     sampler = RandomSampler(dataset)
@@ -135,9 +135,6 @@ def create_padded_tensor(sequence):
 
 def initialise_optimiser():
     """ Create optimiser with prespecified hyperparameters and return it. """
-
-    param_optimiser = list(model.named_parameters())
-    no_decay = ['bias', 'gamma', 'beta']
 
     # AdamW used to be BertAdam 
     max_grad_norm = 1.0
@@ -189,8 +186,8 @@ def validation_epoch():
             logits = model_output[1]
 
             # Save batch data to be able to evaluate epoch as a whole
-            epoch_labels = torch.cat((epoch_labels, batch_labels))
-            epoch_logits = torch.cat((epoch_logits, logits))
+            epoch_labels = torch.cat((epoch_labels, batch_labels.cpu()))
+            epoch_logits = torch.cat((epoch_logits, logits.cpu()))
 
     micro_f1, macro_f1, c_matrix = evaluate_model(epoch_logits, epoch_labels)
     
@@ -204,16 +201,16 @@ def train_model():
     
     return micro_f1, macro_f1, c_matrix
 
-def evaluate_model(logits, batch_labels):
-    """ Use F1-score and confusion matrix to evaluate model performance"""
+def evaluate_model(logits, epoch_labels):
+    """ Use F1-score and confusion matrix to evaluate model performance. Logits and label tensors need to be on CPU. """
     preds = np.argmax(logits, axis=1).flatten()     # This gives us the flat predictions
     
     # F1 Score
-    micro_f1 = f1_score(batch_labels, preds, average='micro')
-    macro_f1 = f1_score(batch_labels, preds, average='macro')
+    micro_f1 = f1_score(epoch_labels, preds, average='micro')
+    macro_f1 = f1_score(epoch_labels, preds, average='macro')
 
     # Confusion matrix
-    c_matrix = confusion_matrix(batch_labels.tolist(), preds.tolist(), labels=[0, 1, 2])
+    c_matrix = confusion_matrix(epoch_labels.tolist(), preds.tolist(), labels=[0, 1, 2])
     
     if(ENABLE_PLOTTING): plot_confusion_matrix(c_matrix)
 
@@ -272,12 +269,13 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING = read_config()
+DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE = read_config()
 check_output_path()
 print('Reading config complete.')
 
 print('Reading data...')
 data_df = pd.read_json(DATA_PATH, lines=True)
+if DATA_SAMPLE > 0: data_df = data_df.sample(DATA_SAMPLE)
 print('Reading data complete. Loaded {} annotations.'.format(len(data_df['claim'])))
 
 print('Pre-processing data...')
@@ -299,7 +297,7 @@ validation_dataloader = initialise_dataloader(validation_inputs, validation_mask
 print('Initialising dataloader complete.')
 
 print('Initialising model...')
-model = BertForSequenceClassification.from_pretrained(PRETRAINED_MODEL, num_labels=NUM_LABELS)
+model = BertForSequenceClassification.from_pretrained(PRETRAINED_MODEL, num_labels=NUM_LABELS).cuda()
 optimiser, scheduler = initialise_optimiser()
 print('Initialising model complete.')
 
@@ -308,6 +306,8 @@ train_loss = []
 micro_f1, macro_f1, c_matrix = train_model()
 print('Training model complete.')
 
+print('Execution time: {}.'.format(datetime.now()-start_time))
+
 print('Plotting loss...')
 plot_loss(train_loss)
 print('Plotting loss complete.')
@@ -315,5 +315,3 @@ print('Plotting loss complete.')
 print('Exporting results to json...')
 export_results()
 print('Export complete.')
-
-print('Execution complete. Execution time: {}.'.format(datetime.now()-start_time))
