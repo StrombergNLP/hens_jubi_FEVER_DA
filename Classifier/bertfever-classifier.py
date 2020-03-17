@@ -14,6 +14,7 @@ from datetime import datetime
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, confusion_matrix
+from sklearn.utils import resample
 
 #--------
 # Method Definitions
@@ -55,6 +56,20 @@ def convert_labels():
     }
 
     data_df.label = data_df.label.apply(lambda x: labels_vals[x])
+
+def balance_data():
+    supported_df = data_df[data_df['label'] == 1]
+    refuted_df = data_df[data_df['label'] == 0]
+    nei_df = data_df[data_df['label'] == 2]
+
+    major_len = max([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
+    combined_df = pd.DataFrame(columns=['claim', 'entity', 'evidence', 'label'])
+
+    for df in [supported_df, refuted_df, nei_df]:
+        df = resample(df, replace=True, n_samples=major_len)
+        combined_df = combined_df.append(df)
+
+    return combined_df.sample(frac=1)   # shuffling
 
 def tokenize_inputs():
     """ Return tokenized input ids and token type ids. """
@@ -282,7 +297,10 @@ print('Reading config complete.')
 
 print('Reading data...')
 data_df = pd.read_json(DATA_PATH, lines=True)
-if DATA_SAMPLE > 0: data_df = data_df.sample(DATA_SAMPLE)
+if DATA_SAMPLE > 0: data_df = data_df.head(DATA_SAMPLE)     # For sampling consistently 
+# print('Supported count: {}'.format(len(data_df.query("label == 'Supported'"))))
+# print('Refuted count: {}'.format(len(data_df.query("label == 'Refuted'"))))
+# print('NotEnoughInfo count: {}'.format(len(data_df.query("label == 'NotEnoughInfo'"))))
 print('Reading data complete. Loaded {} annotations.'.format(len(data_df['claim'])))
 
 print('Pre-processing data...')
@@ -290,6 +308,13 @@ drop_duplicate_claims()
 concatenate_evidence()
 convert_labels()
 print('Pre-processing complete.')
+
+print('Oversampling data...')
+data_df = balance_data()
+# print('Supported count: {}'.format(len(data_df.query("label == 1"))))
+# print('Refuted count: {}'.format(len(data_df.query("label == 0"))))
+# print('NotEnoughInfo count: {}'.format(len(data_df.query("label == 2"))))
+print('Oversampling data complete. Size of df: {}'.format(len(data_df.label)))
 
 print('Preparing data...')
 input_ids, token_type_ids = tokenize_inputs()
