@@ -37,6 +37,19 @@ def plot_loss(train_loss):
     plt.plot(train_loss)
     plt.show()
 
+def plot_single_box(f1_score, f1_type):
+    sn.set(style="whitegrid")
+    f1_score[f1_type] = f1_score[0]
+    ax = sn.boxplot(x=f1_score[f1_type], orient='v', width=0.35, palette='Blues_d')
+    plt.show()
+
+def plot_multi_box(micro, macro):
+    combined_df = pd.DataFrame(columns=['micro', 'macro'])
+    combined_df['micro'] = micro[0]
+    combined_df['macro'] = macro[0]
+    ax = sn.boxplot(data=combined_df, order=['micro', 'macro'], width=0.35, palette='Blues_d')
+    plt.show()
+
 def avg_loss(combined_data):
     """ 
     Gets the avg of train loss per row. 
@@ -54,6 +67,7 @@ def avg_matrix(combined_data, config):
     average_matrix = np.average(combined_data, axis=0)
     plot_confusion_matrix(average_matrix, config)
 
+
 #---------
 # Main
 #---------
@@ -70,3 +84,8 @@ results_5 = parse_data('out/17-03-2020-13-33-09.json')
 # plot_loss(results_1[2])
 # avg_loss([results_1[2], results_3[2]])
 # avg_matrix([results_1[1], results_3[1], results_2[1], results_4[1], results_5[1]], results_1[0]) 
+micro_df = pd.DataFrame([results_1[3], results_3[3], results_2[3], results_4[3], results_5[3]])
+macro_df = pd.DataFrame([results_1[4], results_3[4], results_2[4], results_4[4], results_5[4]])
+# plot_single_box(micro_df, 'Micro F1')
+# plot_single_box(macro_df, 'Macro F1')
+plot_multi_box(micro_df, macro_df)
