@@ -37,8 +37,12 @@ def plot_loss(train_loss):
     plt.plot(train_loss)
     plt.show()
 
+def plot_multi_loss(combined_data):
+    ax = sn.lineplot(data=combined_data)
+    plt.show()
+
 def plot_single_box(f1_score, f1_type):
-    sn.set(style="whitegrid")
+    sn.set(style="whitegrid", font_scale=0.75)
     f1_score[f1_type] = f1_score[0]
     ax = sn.boxplot(x=f1_score[f1_type], orient='v', width=0.35, palette='Blues_d')
     plt.show()
@@ -47,6 +51,7 @@ def plot_multi_box(micro, macro):
     combined_df = pd.DataFrame(columns=['micro', 'macro'])
     combined_df['micro'] = micro[0]
     combined_df['macro'] = macro[0]
+    sn.set(style="whitegrid", font_scale=0.75)
     ax = sn.boxplot(data=combined_df, order=['micro', 'macro'], width=0.35, palette='Blues_d')
     plt.show()
 
@@ -88,4 +93,8 @@ micro_df = pd.DataFrame([results_1[3], results_3[3], results_2[3], results_4[3],
 macro_df = pd.DataFrame([results_1[4], results_3[4], results_2[4], results_4[4], results_5[4]])
 # plot_single_box(micro_df, 'Micro F1')
 # plot_single_box(macro_df, 'Macro F1')
-plot_multi_box(micro_df, macro_df)
+# plot_multi_box(micro_df, macro_df)
+loss_df = pd.DataFrame(columns=['lr1', 'lr2'])
+loss_df['lr1'] = results_1[2]
+loss_df['lr2'] = results_3[2]
+plot_multi_loss(loss_df)
