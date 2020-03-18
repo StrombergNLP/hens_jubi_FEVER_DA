@@ -27,17 +27,17 @@ TEST_SIZE = 0.1
 train_df, test_df = train_test_split(data_df, test_size=TEST_SIZE)
 
 LABELS = ['Refuted', 'Supported', 'NotEnoughInfo']
-medians = []
+means = []
 
 # 'Training'
 for label in LABELS:
-    median = train_df[train_df.label == label].cosine_similarity.median()
-    print('Median cosine similarity for {}: {}'.format(label, median))
-    medians.append(median)
+    mean = train_df[train_df.label == label].cosine_similarity.mean()
+    print('Mean cosine similarity for {}: {}'.format(label, mean))
+    means.append(mean)
 
-# 'Testing', i.e. calculating distance from consine similarity of each claim-evidence pair to the medians of the labels
+# 'Testing', i.e. calculating distance from consine similarity of each claim-evidence pair to the means of the labels
 def find_nearest_label(row):
-    distances = [abs(row.cosine_similarity - m) for m in medians]    # Calculate distance to each label's median
+    distances = [abs(row.cosine_similarity - m) for m in means]    # Calculate distance to each label's mean
     prediction = LABELS[np.argmin(distances)]       # Get label with the smallest distance
     return prediction
 
