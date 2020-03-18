@@ -9,6 +9,7 @@ import seaborn as sn
 import matplotlib.pyplot as plt
 from tqdm import trange
 from torch.nn.utils.rnn import pad_sequence
+from torch.nn import CrossEntropyLoss
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 from datetime import datetime
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
@@ -58,18 +59,29 @@ def convert_labels():
     data_df.label = data_df.label.apply(lambda x: labels_vals[x])
 
 def balance_data():
+    """
+    Balance dataset by oversampling minority classes to size of majority class.
+    Calculate class weights by giving minority classes proportionally higher weights.
+    Return shuffled dataframe and class weights criterion.
+    """
     supported_df = data_df[data_df['label'] == 1]
     refuted_df = data_df[data_df['label'] == 0]
     nei_df = data_df[data_df['label'] == 2]
 
     major_len = max([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
     combined_df = pd.DataFrame(columns=['claim', 'entity', 'evidence', 'label'])
+    class_weights = []
 
     for df in [supported_df, refuted_df, nei_df]:
-        df = resample(df, replace=True, n_samples=major_len)
+        weight = major_len / float(len(df.label))      # Calculate class weight based on proportional size of class: smaller size -> larger weight
+        class_weights.append(weight)
+        df = resample(df, replace=True, n_samples=major_len)    # Oversample
         combined_df = combined_df.append(df)
 
-    return combined_df.sample(frac=1)   # shuffling
+    shuffled_df = combined_df.sample(frac=1)   # Shuffle
+    class_weights = torch.FloatTensor(class_weights).cuda() if ENABLE_CUDA else torch.FloatTensor(class_weights)        # Move to GPU
+    criterion = CrossEntropyLoss(weight=class_weights)
+    return shuffled_df, criterion
 
 def tokenize_inputs():
     """ Return tokenized input ids and token type ids. """
@@ -132,6 +144,12 @@ def initialise_dataloader(input_ids, attention_masks, labels, token_type_ids):
 
     return dataloader
 
+def initialise_model():
+    """ Initialise model. Move to GPU if CUDA is enabled. Return model. """
+    model = BertForSequenceClassification.from_pretrained(PRETRAINED_MODEL, num_labels=NUM_LABELS)
+    if ENABLE_CUDA: model = model.cuda()
+    return model
+
 def create_padded_tensor(sequence):
     """
     Take a list of variable length lists.
@@ -175,7 +193,8 @@ def training_epoch():
         print('Training batch {} with size {}.'.format(index, batch_labels.size()[0]))
         optimiser.zero_grad()       # Clear gradients
         model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)    # Forward pass
-        loss = model_output[0]
+        logits = model_output[1]
+        loss = criterion(logits, batch_labels)      # Calculate loss with class weights
 
         loss.backward()     # Backward pass 
         optimiser.step()
@@ -298,9 +317,9 @@ print('Reading config complete.')
 print('Reading data...')
 data_df = pd.read_json(DATA_PATH, lines=True)
 if DATA_SAMPLE > 0: data_df = data_df.head(DATA_SAMPLE)     # For sampling consistently 
-# print('Supported count: {}'.format(len(data_df.query("label == 'Supported'"))))
-# print('Refuted count: {}'.format(len(data_df.query("label == 'Refuted'"))))
-# print('NotEnoughInfo count: {}'.format(len(data_df.query("label == 'NotEnoughInfo'"))))
+print('Supported count: {}'.format(len(data_df.query("label == 'Supported'"))))
+print('Refuted count: {}'.format(len(data_df.query("label == 'Refuted'"))))
+print('NotEnoughInfo count: {}'.format(len(data_df.query("label == 'NotEnoughInfo'"))))
 print('Reading data complete. Loaded {} annotations.'.format(len(data_df['claim'])))
 
 print('Pre-processing data...')
@@ -309,12 +328,9 @@ concatenate_evidence()
 convert_labels()
 print('Pre-processing complete.')
 
-print('Oversampling data...')
-data_df = balance_data()
-# print('Supported count: {}'.format(len(data_df.query("label == 1"))))
-# print('Refuted count: {}'.format(len(data_df.query("label == 0"))))
-# print('NotEnoughInfo count: {}'.format(len(data_df.query("label == 2"))))
-print('Oversampling data complete. Size of df: {}'.format(len(data_df.label)))
+print('Balancing data...')
+data_df, criterion = balance_data()
+print('Balancing data complete. Size of df: {}'.format(len(data_df.label)))
 
 print('Preparing data...')
 input_ids, token_type_ids = tokenize_inputs()
@@ -329,8 +345,7 @@ validation_dataloader = initialise_dataloader(validation_inputs, validation_mask
 print('Initialising dataloader complete.')
 
 print('Initialising model...')
-model = BertForSequenceClassification.from_pretrained(PRETRAINED_MODEL, num_labels=NUM_LABELS)
-if ENABLE_CUDA: model = model.cuda()
+model = initialise_model()
 optimiser, scheduler = initialise_optimiser()
 print('Initialising model complete.')
 
