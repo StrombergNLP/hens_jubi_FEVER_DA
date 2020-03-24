@@ -58,30 +58,30 @@ def convert_labels():
 
     data_df.label = data_df.label.apply(lambda x: labels_vals[x])
 
-def balance_data():
+def balance_data(df):
     """
     Balance dataset by oversampling minority classes to size of majority class.
     Calculate class weights by giving minority classes proportionally higher weights.
     Return shuffled dataframe and class weights criterion.
     """
-    supported_df = data_df[data_df['label'] == 1]
-    refuted_df = data_df[data_df['label'] == 0]
-    nei_df = data_df[data_df['label'] == 2]
+    # supported_df = data_df[data_df['label'] == 1]
+    # refuted_df = data_df[data_df['label'] == 0]
+    # nei_df = data_df[data_df['label'] == 2]
 
-    major_len = max([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
-    combined_df = pd.DataFrame(columns=['claim', 'entity', 'evidence', 'label'])
-    class_weights = []
+    # major_len = max([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
+    # combined_df = pd.DataFrame(columns=['claim', 'entity', 'evidence', 'label'])
+    # class_weights = []
 
-    for df in [supported_df, refuted_df, nei_df]:
-        weight = major_len / float(len(df.label))      # Calculate class weight based on proportional size of class: smaller size -> larger weight
-        class_weights.append(weight)
-        df = resample(df, replace=True, n_samples=major_len)    # Oversample
-        combined_df = combined_df.append(df)
+    # for df in [supported_df, refuted_df, nei_df]:
+    #     weight = major_len / float(len(df.label))      # Calculate class weight based on proportional size of class: smaller size -> larger weight
+    #     class_weights.append(weight)
+    #     df = resample(df, replace=True, n_samples=major_len)    # Oversample
+    #     combined_df = combined_df.append(df)
 
-    shuffled_df = combined_df.sample(frac=1)   # Shuffle
-    class_weights = torch.FloatTensor(class_weights).cuda() if ENABLE_CUDA else torch.FloatTensor(class_weights)        # Move to GPU
-    criterion = CrossEntropyLoss(weight=class_weights)
-    return shuffled_df, criterion
+    # shuffled_df = combined_df.sample(frac=1)   # Shuffle
+    # class_weights = torch.FloatTensor(class_weights).cuda() if ENABLE_CUDA else torch.FloatTensor(class_weights)        # Move to GPU
+    # criterion = CrossEntropyLoss(weight=class_weights)
+    # return shuffled_df, criterion
 
 def tokenize_inputs():
     """ Return tokenized input ids and token type ids. """
@@ -328,16 +328,17 @@ concatenate_evidence()
 convert_labels()
 print('Pre-processing complete.')
 
-print('Balancing data...')
-data_df, criterion = balance_data()
-print('Balancing data complete. Size of df: {}'.format(len(data_df.label)))
-
 print('Preparing data...')
 input_ids, token_type_ids = tokenize_inputs()
 attention_masks = generate_attention_masks()
 train_inputs, validation_inputs, train_labels, validation_labels = split_data(input_ids, data_df.label.tolist())
 train_masks, validation_masks, train_token_type_ids, validation_token_type_ids = split_data(attention_masks, token_type_ids)
 print('Preparing data complete.')
+
+print('Balancing data...')
+balance_data()
+print('Balancing data complete. Size of df: {}'.format(len(data_df.label)))
+
 
 print('Initialising dataloader...')
 train_dataloader = initialise_dataloader(train_inputs, train_masks, train_labels, train_token_type_ids)
