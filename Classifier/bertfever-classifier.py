@@ -25,8 +25,8 @@ def read_config():
     """ Take the config path as a string and return the config parameters in a map. """
     with open(CONFIG_PATH, 'r') as config_file:
         config = json.load(config_file)
-    return (config['data_path'], config['pretrained_model'], config['max_len'], 
-            config['batch_size'], config['num_labels'], config['learning_rate'], 
+    return (config['train_data_path'], config['validation_data_path'], config['pretrained_model'], 
+            config['max_len'], config['batch_size'], config['num_labels'], config['learning_rate'], 
             config['num_epochs'], config['test_size'], bool(config['enable_plotting']), 
             config['output_dir'], bool(config['skip_training']), config['data_sample'], bool(config['enable_cuda']))
 
@@ -36,18 +36,20 @@ def check_output_path():
         os.mkdir(OUTPUT_DIR)
         print('Output directory was not found. Created /{}.'.format(OUTPUT_DIR))
 
-def drop_duplicate_claims():
+def drop_duplicate_claims(df):
     """ Drops rows with duplicate values in claim column. Modifies DF in place! """
-    len_with_dupes = len(data_df['claim'])
-    data_df.drop_duplicates(subset='claim', inplace=True)
-    len_no_dupes = len(data_df['claim'])
+    len_with_dupes = len(df['claim'])
+    df.drop_duplicates(subset='claim', inplace=True)
+    len_no_dupes = len(df['claim'])
     print('Dropped {} duplicate rows.'.format(len_with_dupes - len_no_dupes))
+    return df
 
-def concatenate_evidence():
+def concatenate_evidence(df):
     """ Concatenate the evidence for each claim into one string. Edits df in place. """
-    data_df.evidence = data_df.evidence.transform(lambda x: ' '.join(x))
+    df.evidence = df.evidence.transform(lambda x: ' '.join(x))
+    return df
 
-def convert_labels():
+def convert_labels(df):
     """ Convert labels to numeric values. Edits the dataframe in place. """
 
     labels_vals = {
@@ -56,7 +58,8 @@ def convert_labels():
         'NotEnoughInfo': 2    
     }
 
-    data_df.label = data_df.label.apply(lambda x: labels_vals[x])
+    df.label = df.label.apply(lambda x: labels_vals[x])
+    return df
 
 def balance_data(df):
     """
@@ -64,30 +67,30 @@ def balance_data(df):
     Calculate class weights by giving minority classes proportionally higher weights.
     Return shuffled dataframe and class weights criterion.
     """
-    # supported_df = data_df[data_df['label'] == 1]
-    # refuted_df = data_df[data_df['label'] == 0]
-    # nei_df = data_df[data_df['label'] == 2]
+    supported_df = df[df['label'] == 1]
+    refuted_df = df[df['label'] == 0]
+    nei_df = df[df['label'] == 2]
 
-    # major_len = max([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
-    # combined_df = pd.DataFrame(columns=['claim', 'entity', 'evidence', 'label'])
-    # class_weights = []
+    major_len = max([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
+    combined_df = pd.DataFrame(columns=['claim', 'entity', 'evidence', 'label'])
+    class_weights = []
 
-    # for df in [supported_df, refuted_df, nei_df]:
-    #     weight = major_len / float(len(df.label))      # Calculate class weight based on proportional size of class: smaller size -> larger weight
-    #     class_weights.append(weight)
-    #     df = resample(df, replace=True, n_samples=major_len)    # Oversample
-    #     combined_df = combined_df.append(df)
+    for df in [supported_df, refuted_df, nei_df]:
+        weight = major_len / float(len(df.label))      # Calculate class weight based on proportional size of class: smaller size -> larger weight
+        class_weights.append(weight)
+        df = resample(df, replace=True, n_samples=major_len)    # Oversample
+        combined_df = combined_df.append(df)
 
-    # shuffled_df = combined_df.sample(frac=1)   # Shuffle
-    # class_weights = torch.FloatTensor(class_weights).cuda() if ENABLE_CUDA else torch.FloatTensor(class_weights)        # Move to GPU
-    # criterion = CrossEntropyLoss(weight=class_weights)
-    # return shuffled_df, criterion
+    shuffled_df = combined_df.sample(frac=1)   # Shuffle
+    class_weights = torch.FloatTensor(class_weights).cuda() if ENABLE_CUDA else torch.FloatTensor(class_weights)        # Move to GPU
+    criterion = CrossEntropyLoss(weight=class_weights)
+    return shuffled_df, criterion
 
-def tokenize_inputs():
+def tokenize_inputs(df):
     """ Return tokenized input ids and token type ids. """
     tokenizer = BertTokenizer.from_pretrained(PRETRAINED_MODEL, do_lower_case=True)
-    input_ids_0 = generate_input_ids(data_df.claim, tokenizer)
-    input_ids_1 = generate_input_ids(data_df.evidence, tokenizer)
+    input_ids_0 = generate_input_ids(df.claim, tokenizer)
+    input_ids_1 = generate_input_ids(df.evidence, tokenizer)
     token_type_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.create_token_type_ids_from_sequences)
     input_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.build_inputs_with_special_tokens) # Add special tokens like [CLS] and [SEP]
     return input_ids, token_type_ids
@@ -110,7 +113,7 @@ def transform_input_ids(input_ids_0, input_ids_1, tokenizer_func):
     ))
     return transformed_ids
 
-def generate_attention_masks():
+def generate_attention_masks(input_ids):
     """ 
     For every sequence in the input_id, generate attention masks.
     1 for every non-zero id, 0 for padding.
@@ -279,7 +282,8 @@ def plot_loss(train_loss):
 def export_results():
     results = {
         'config': {
-            'data_path': DATA_PATH, 
+            'train_data_path': TRAIN_DATA_PATH, 
+            'validation_data_path': VALIDATION_DATA_PATH, 
             'data_sample': DATA_SAMPLE,
             'pretrained_model': PRETRAINED_MODEL, 
             'max_len': MAX_LEN, 
@@ -309,36 +313,39 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE, ENABLE_CUDA = read_config()
+TRAIN_DATA_PATH, VALIDATION_DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE, ENABLE_CUDA = read_config()
 check_output_path()
 if ENABLE_CUDA: print('Using CUDA on {}.'.format(torch.cuda.get_device_name(0)))
 print('Reading config complete.')
 
 print('Reading data...')
-data_df = pd.read_json(DATA_PATH, lines=True)
-if DATA_SAMPLE > 0: data_df = data_df.head(DATA_SAMPLE)     # For sampling consistently 
-print('Supported count: {}'.format(len(data_df.query("label == 'Supported'"))))
-print('Refuted count: {}'.format(len(data_df.query("label == 'Refuted'"))))
-print('NotEnoughInfo count: {}'.format(len(data_df.query("label == 'NotEnoughInfo'"))))
-print('Reading data complete. Loaded {} annotations.'.format(len(data_df['claim'])))
+train_data_df = pd.read_json(TRAIN_DATA_PATH, lines=True)
+validation_data_df = pd.read_json(VALIDATION_DATA_PATH, lines=True)
+train_data_df = train_data_df.head(int(DATA_SAMPLE * len(train_data_df.claim)))     # For sampling consistently 
+validation_data_df = validation_data_df.head(int(DATA_SAMPLE * len(validation_data_df)))
+print('Reading data complete. Training annotations : {} | {} : Validation annotations.'.format(len(train_data_df['claim']), len(validation_data_df['claim'])))
 
 print('Pre-processing data...')
-drop_duplicate_claims()
-concatenate_evidence()
-convert_labels()
+train_data_df = drop_duplicate_claims(train_data_df)
+validation_data_df = drop_duplicate_claims(validation_data_df)
+train_data_df = concatenate_evidence(train_data_df)
+validation_data_df = concatenate_evidence(validation_data_df)
+train_data_df = convert_labels(train_data_df)
+validation_data_df = convert_labels(validation_data_df)
 print('Pre-processing complete.')
 
-print('Preparing data...')
-input_ids, token_type_ids = tokenize_inputs()
-attention_masks = generate_attention_masks()
-train_inputs, validation_inputs, train_labels, validation_labels = split_data(input_ids, data_df.label.tolist())
-train_masks, validation_masks, train_token_type_ids, validation_token_type_ids = split_data(attention_masks, token_type_ids)
-print('Preparing data complete.')
-
 print('Balancing data...')
-balance_data()
-print('Balancing data complete. Size of df: {}'.format(len(data_df.label)))
+train_data_df, criterion = balance_data(train_data_df)
+print('Balancing data complete. Size of train data df: {}'.format(len(train_data_df.label)))
 
+print('Preparing data...')
+train_inputs, train_token_type_ids = tokenize_inputs(train_data_df)
+validation_inputs, validation_token_type_ids = tokenize_inputs(validation_data_df)
+train_masks = generate_attention_masks(train_inputs)
+validation_masks = generate_attention_masks(validation_inputs)
+train_labels = train_data_df.label.tolist()
+validation_labels = validation_data_df.label.tolist()
+print('Preparing data complete.')
 
 print('Initialising dataloader...')
 train_dataloader = initialise_dataloader(train_inputs, train_masks, train_labels, train_token_type_ids)
