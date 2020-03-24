@@ -28,21 +28,6 @@ def extract_ngrams(claim):
 data_df['ngrams'] = data_df.apply(lambda x: extract_ngrams(x.claim), axis=1)
 print(data_df[['claim', 'label']])
 
-# Normalize for size of class
-# refuted_len = len(data_df[data_df['label'] == 'Refuted'].label)
-# supported_len = len(data_df[data_df['label'] == 'Supported'].label)
-# nei_len = len(data_df[data_df['label'] == 'NotEnoughInfo'].label)
-
-# major_len = max([supported_len, refuted_len, nei_len])
-
-# supported_factor = major_len / supported_len
-# refuted_factor = major_len / refuted_len
-# nei_factor = major_len / nei_len
-
-# cues_df['Supported'] = cues_df['Supported'] * supported_factor
-# cues_df['Refuted'] = cues_df['Refuted'] * refuted_factor
-# cues_df['NotEnoughInfo'] = cues_df['NotEnoughInfo'] * nei_factor
-
 def balance_data():
     """
     Balance dataset by oversampling minority classes to size of majority class.
@@ -67,39 +52,39 @@ def balance_data():
 
     return combined_df.sample(frac=1)   # Shuffle
 
-data_df = balance_data()
+all_cues_df = pd.DataFrame(columns=['ngrams', 'label', 'max', 'total', 'productivity', 'coverage'])
+for i in range(10):
+    print('Step {}'.format(i))
+    balanced_df = balance_data()
 
-# Do all of the mathy part for each n-gram
+    # Do all of the mathy part for each n-gram
 
-labels = ['Refuted', 'Supported', 'NotEnoughInfo']
-cues_df = data_df[['ngrams', 'claim', 'label']]
-cues_df = cues_df.explode('ngrams')
-cues_df = cues_df.groupby(['ngrams', 'label']).count().reset_index()
-cues_df = cues_df.pivot(index='ngrams', columns='label', values='claim').reset_index()
-cues_df = cues_df.fillna(value=0)
+    labels = ['Refuted', 'Supported', 'NotEnoughInfo']
+    cues_df = balanced_df[['ngrams', 'claim', 'label']]
+    cues_df = cues_df.explode('ngrams')
+    cues_df = cues_df.groupby(['ngrams', 'label']).count().reset_index()
+    cues_df = cues_df.pivot(index='ngrams', columns='label', values='claim').reset_index()
+    cues_df = cues_df.fillna(value=0)
 
-cues_df['total'] = cues_df.apply(lambda x: x.Supported + x.Refuted + x.NotEnoughInfo, axis=1)
-cues_df['max'] = cues_df.apply(lambda x: max([x.Supported, x.Refuted, x.NotEnoughInfo]), axis=1)
+    cues_df['total'] = cues_df.apply(lambda x: x.Supported + x.Refuted + x.NotEnoughInfo, axis=1)
+    cues_df['max'] = cues_df.apply(lambda x: max([x.Supported, x.Refuted, x.NotEnoughInfo]), axis=1)
 
-print(cues_df.sort_values('total'))
+    # print(cues_df.sort_values('total'))
 
-# Productivity π(k) of a cue is defined as the proportion of claims in which the cue k appears and where the label is equal
-# to the label with which k appears most frequently. I.e. π(k) is the chance of predicting the label of a claim in the dataset by chosing
-# the most common label for k
-cues_df['productivity'] = cues_df.apply(lambda x: x['max'] / float(x.total), axis=1)
+    # Productivity π(k) of a cue is defined as the proportion of claims in which the cue k appears and where the label is equal
+    # to the label with which k appears most frequently. I.e. π(k) is the chance of predicting the label of a claim in the dataset by chosing
+    # the most common label for k
+    cues_df['productivity'] = cues_df.apply(lambda x: x['max'] / float(x.total), axis=1)
 
-print(cues_df.sort_values('productivity'))
+    # print(cues_df.sort_values('productivity'))
 
-# Coverage ξk of a cue as the proportion of claims that contain the cue over the total number of
-# claims: ξk = αk/n
-cues_df['coverage'] = cues_df.apply(lambda x: x.total / len(data_df.claim), axis=1)
+    # Coverage ξk of a cue as the proportion of claims that contain the cue over the total number of
+    # claims: ξk = αk/n
+    cues_df['coverage'] = cues_df.apply(lambda x: x.total / len(balanced_df.claim), axis=1)
+    # print(cues_df.sort_values('total'))
+    all_cues_df = all_cues_df.append(cues_df)
 
-# Not yet redefined 
-
-# applicability αk a cue’s applicability as the number of data points 
-# where it occurs with one label but not the other (not needed for comparability, might not be necessary anymore for calculation either)
-
-
+all_cues_df = all_cues_df.groupby('ngrams').mean().reset_index()
 
 # Output to file
-cues_df.to_json('out.jsonl', orient='records', lines=True)
+all_cues_df.to_json('out.jsonl', orient='records', lines=True)
