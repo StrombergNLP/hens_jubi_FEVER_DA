@@ -27,7 +27,7 @@ def read_config():
         config = json.load(config_file)
     return (config['train_data_path'], config['validation_data_path'], config['pretrained_model'], 
             config['max_len'], config['batch_size'], config['num_labels'], config['learning_rate'], 
-            config['num_epochs'], config['test_size'], bool(config['enable_plotting']), 
+            config['num_epochs'], bool(config['enable_plotting']), 
             config['output_dir'], bool(config['skip_training']), config['data_sample'], bool(config['enable_cuda']))
 
 def check_output_path():
@@ -121,14 +121,6 @@ def generate_attention_masks(input_ids):
     """
     attention_masks = list(map(lambda x: [float(i > 0) for i in x], input_ids))
     return attention_masks
-
-def split_data(input_0, input_1):
-    """ 
-    Split data inputs to training and validation data. 
-    Inputs can be various iterables.
-    """
-    train_0, valid_0, train_1, valid_1 = train_test_split(input_0, input_1, random_state=1234, test_size=TEST_SIZE) # For testing purpose we are setting a specific random seed
-    return train_0, valid_0, train_1, valid_1 
 
 def initialise_dataloader(input_ids, attention_masks, labels, token_type_ids):
     """
@@ -292,7 +284,6 @@ def export_results():
             'learning_rate': LEARNING_RATE, 
             'skip_training': SKIP_TRAINING,
             'num_epochs': NUM_EPOCHS, 
-            'test_size' : TEST_SIZE,
             'enable_cuda': ENABLE_CUDA
         }, 
         'loss': train_loss, 
@@ -313,7 +304,7 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-TRAIN_DATA_PATH, VALIDATION_DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, TEST_SIZE, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE, ENABLE_CUDA = read_config()
+TRAIN_DATA_PATH, VALIDATION_DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE, ENABLE_CUDA = read_config()
 check_output_path()
 if ENABLE_CUDA: print('Using CUDA on {}.'.format(torch.cuda.get_device_name(0)))
 print('Reading config complete.')
