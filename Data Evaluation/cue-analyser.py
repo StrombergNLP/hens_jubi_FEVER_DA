@@ -1,11 +1,21 @@
 import pandas as pd
+from sklearn.utils import resample
 
 # Load data
 DATA_PATH = '../Data Generation/CommonData/annotations/annotations_00.jsonl'
-data_df = pd.read_json(DATA_PATH, lines=True).head(100)
+data_df = pd.read_json(DATA_PATH, lines=True).head(1800)
 claims = data_df.claim.tolist()
 claims = [c[:-1] for c in claims]       # Cut off the final period
 print('{} claims loaded.'.format(len(claims)))
+
+def drop_duplicate_claims():
+    """ Drops rows with duplicate values in claim column. Modifies DF in place! """
+    len_with_dupes = len(data_df['claim'])
+    data_df.drop_duplicates(subset='claim', inplace=True)
+    len_no_dupes = len(data_df['claim'])
+    print('Dropped {} duplicate rows.'.format(len_with_dupes - len_no_dupes))
+
+drop_duplicate_claims()
 
 # Extract n-grams
 def extract_ngrams(claim):
@@ -16,7 +26,49 @@ def extract_ngrams(claim):
 
 # print(claims)
 data_df['ngrams'] = data_df.apply(lambda x: extract_ngrams(x.claim), axis=1)
-print(data_df)
+print(data_df[['claim', 'label']])
+
+# Normalize for size of class
+# refuted_len = len(data_df[data_df['label'] == 'Refuted'].label)
+# supported_len = len(data_df[data_df['label'] == 'Supported'].label)
+# nei_len = len(data_df[data_df['label'] == 'NotEnoughInfo'].label)
+
+# major_len = max([supported_len, refuted_len, nei_len])
+
+# supported_factor = major_len / supported_len
+# refuted_factor = major_len / refuted_len
+# nei_factor = major_len / nei_len
+
+# cues_df['Supported'] = cues_df['Supported'] * supported_factor
+# cues_df['Refuted'] = cues_df['Refuted'] * refuted_factor
+# cues_df['NotEnoughInfo'] = cues_df['NotEnoughInfo'] * nei_factor
+
+def balance_data():
+    """
+    Balance dataset by oversampling minority classes to size of majority class.
+    Calculate class weights by giving minority classes proportionally higher weights.
+    Return shuffled dataframe and class weights criterion.
+    """
+    supported_df = data_df[data_df['label'] == 'Supported']
+    refuted_df = data_df[data_df['label'] == 'Refuted']
+    nei_df = data_df[data_df['label'] == 'NotEnoughInfo']
+
+    # major_len = max([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
+    minor_len = min([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
+    combined_df = pd.DataFrame(columns=['claim', 'entity', 'evidence', 'label', 'ngrams'])
+
+    # for df in [supported_df, refuted_df, nei_df]:
+    #     df = resample(df, replace=True, n_samples=major_len)    # Oversample
+    #     combined_df = combined_df.append(df)
+
+    for df in [supported_df, refuted_df, nei_df]:
+        df = df.sample(minor_len) # Undersampling
+        combined_df = combined_df.append(df)
+
+    return combined_df.sample(frac=1)   # Shuffle
+
+data_df = balance_data()
+
 # Do all of the mathy part for each n-gram
 
 labels = ['Refuted', 'Supported', 'NotEnoughInfo']
@@ -25,18 +77,29 @@ cues_df = cues_df.explode('ngrams')
 cues_df = cues_df.groupby(['ngrams', 'label']).count().reset_index()
 cues_df = cues_df.pivot(index='ngrams', columns='label', values='claim').reset_index()
 cues_df = cues_df.fillna(value=0)
+
 cues_df['total'] = cues_df.apply(lambda x: x.Supported + x.Refuted + x.NotEnoughInfo, axis=1)
-print(cues_df)
+cues_df['max'] = cues_df.apply(lambda x: max([x.Supported, x.Refuted, x.NotEnoughInfo]), axis=1)
+
+print(cues_df.sort_values('total'))
 
 # Productivity π(k) of a cue is defined as the proportion of claims in which the cue k appears and where the label is equal
 # to the label with which k appears most frequently. I.e. π(k) is the chance of predicting the label of a claim in the dataset by chosing
 # the most common label for k
-# There's a formula for this in the notebook
+cues_df['productivity'] = cues_df.apply(lambda x: x['max'] / float(x.total), axis=1)
+
+print(cues_df.sort_values('productivity'))
+
+# Coverage ξk of a cue as the proportion of claims that contain the cue over the total number of
+# claims: ξk = αk/n
+cues_df['coverage'] = cues_df.apply(lambda x: x.total / len(data_df.claim), axis=1)
 
 # Not yet redefined 
 
 # applicability αk a cue’s applicability as the number of data points 
 # where it occurs with one label but not the other (not needed for comparability, might not be necessary anymore for calculation either)
 
-# Coverage ξk of a cue as the proportion of applicable cases over the total number of
-# data points (claims): ξk = αk/n
+
+
+# Output to file
+cues_df.to_json('out.jsonl', orient='records', lines=True)
