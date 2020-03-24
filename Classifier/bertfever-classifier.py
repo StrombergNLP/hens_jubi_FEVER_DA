@@ -13,7 +13,6 @@ from torch.nn import CrossEntropyLoss
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 from datetime import datetime
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, confusion_matrix
 from sklearn.utils import resample
 
