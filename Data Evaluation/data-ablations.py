@@ -28,4 +28,6 @@ data_df = shuffle_column(data_df, 'claim')
 data_df.evidence = data_df.evidence.transform(lambda x: ' '.join(x))
 data_df = shuffle_column(data_df, 'evidence')
 
-data_df.to_json('shuffled_input.jsonl',orient='records', lines=True)
+
+
+# data_df.to_json('shuffled_input.jsonl',orient='records', lines=True)

@@ -95,4 +95,4 @@ all_cues_df = all_cues_df.groupby('ngrams').mean().reset_index()
 
 # Output to file
 # all_cues_df.to_json('out.jsonl', orient='records', lines=True)
-all_cues_df.to_csv('out.csv')
+all_cues_df.to_csv('cue_analyser_results.csv')
