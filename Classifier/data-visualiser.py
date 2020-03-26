@@ -17,6 +17,14 @@ def parse_data(data_path):
 
     return [config, c_matrix, loss, micro_f1, macro_f1]
 
+def read_files(labeled_paths):
+    df = pd.DataFrame(columns=['label', 'config', 'confusion_matrix', 'loss', 'micro_f1', 'macro_f1'])
+    for label, path in labeled_paths.items():
+        content = pd.read_json(path, lines=True)
+        content['label'] = label
+        df = df.append(content)
+    return df
+
 def plot_confusion_matrix(c_matrix, config):
     num_labels = config['num_labels']
     df_cm = pd.DataFrame(c_matrix, range(num_labels), range(num_labels))
@@ -72,8 +80,10 @@ def avg_matrix(combined_data, config):
     average_matrix = np.average(combined_data, axis=0)
     plot_confusion_matrix(average_matrix, config)
 
-def plot_bars(df, xaxis, yaxis, hue=None):
+def plot_bars(df, xaxis, yaxis, xlabel=None, ylabel=None, hue=None):
     ax = sn.barplot(x=xaxis, y=yaxis, hue=hue, data=df)
+    if xlabel: ax.set(xlabel=xlabel)
+    if ylabel: ax.set(ylabel=ylabel)
     plt.show()
 
 def scatter_plot(df, xaxis, yaxis):
@@ -104,54 +114,66 @@ def plot_precision_recall(c_matrix):
     precision_recall_df['attribute'] = ['precision', 'recall', 'precision', 'recall', 'precision', 'recall']
     precision_recall_df['value'] = [refuted_precision, refuted_recall, supported_precision, supported_recall, nei_precision, nei_recall]
 
-    plot_bars(precision_recall_df, 'label', 'value', 'attribute')
+    plot_bars(precision_recall_df, 'label', 'value', hue='attribute', xlabel='label')
 
 def calculate_precision_recall(true_positives, false_positives, false_negatives):
     precision = true_positives / (true_positives + false_positives)
     recall = true_positives / (true_positives + false_negatives)
     return precision, recall 
 
-def construct_dataframe(label, att1, att2, att1values, att2values):
-    df = pd.DataFrame(columsn = [label, 'attribute', 'value'])
-    df[label] = 
-    
+def melt_dataframe(df):
+    df = df.melt(id_vars='label', var_name='attribute')
+    return df
+
 #---------
 # Main
 #---------
 
+# Random labels
 # Order: [config, c_matrix, loss, micro_f1, macro_f1]
-results_base = parse_data('results/24-03-2020-13-24-58.json')
+# results_base = parse_data('results/24-03-2020-13-24-58.json')
 
-results_10percent = parse_data('results/25-03-2020-13-19-45.json')
-results_50percent = parse_data('results/25-03-2020-13-36-03.json')
-results_100percent = parse_data('results/25-03-2020-13-52-21.json')
+# labeled_paths = {
+#     0.0: 'results/24-03-2020-13-24-58.json',
+#     0.1: 'results/25-03-2020-13-19-45.json',
+#     0.5: 'results/25-03-2020-13-36-03.json',
+#     1.0: 'results/25-03-2020-13-52-21.json'
+# }
+# random_labels_df = read_files(labeled_paths)
+# plot_precision_recall(random_labels_df.query("label == 0.5").confusion_matrix.values[0])
 
-results_maxlen5 = parse_data('results/25-03-2020-12-29-53.json')
-results_maxlen25 = parse_data('results/25-03-2020-12-22-29.json')
-results_maxlen75 = parse_data('results/25-03-2020-15-05-39.json')
-results_maxlen125 = parse_data('results/25-03-2020-14-48-23.json')
+# random_labels_df = melt_dataframe(random_labels_df[['label', 'micro_f1', 'macro_f1']])
+# plot_bars(random_labels_df, 'label', 'value', hue='attribute', xlabel='random labels %', ylabel='f1 score') 
 
-# Incomplete data visuals
-maxlen_df = pd.DataFrame(columns=['max len', 'attribute', 'value'])
-maxlen_df['max len'] = [5, 5, 25, 25, 75, 75, 125, 125, 250, 250]
-maxlen_df['attribute'] = ['micro f1', 'macro f1', 'micro f1', 'macro f1', 'micro f1', 
-                        'macro f1', 'micro f1', 'macro f1', 'micro f1', 'macro f1']
-maxlen_df['value'] = [results_maxlen5[3], results_maxlen5[4], 
-                    results_maxlen25[3], results_maxlen25[4], 
-                    results_maxlen75[3], results_maxlen75[3], 
-                    results_maxlen125[3], results_maxlen125[4], 
-                    results_base[3], results_base[4]]
-plot_bars(maxlen_df, 'max len', 'value', 'attribute')                    
+# MAX LEN (incomplete data)
+# labeled_paths = {
+#     5: 'results/25-03-2020-12-29-53.json',
+#     25: 'results/25-03-2020-12-22-29.json',
+#     75: 'results/25-03-2020-15-05-39.json',
+#     125: 'results/25-03-2020-14-48-23.json',
+#     250: 'results/24-03-2020-13-24-58.json',
+# }
 
+# maxlen_df = read_files(labeled_paths)
+# maxlen_df = melt_dataframe(maxlen_df[['label', 'micro_f1', 'macro_f1']])
+# plot_bars(maxlen_df, 'label', 'value', hue='attribute', xlabel='max len', ylabel='f1 score')    
 
+# Shuffled word order
+# labeled_paths = {
+#     'base': 'results/24-03-2020-13-24-58.json',
+#     'shuffled': 'results/25-03-2020-12-53-56.json',
+#     'no evidence': 'results/26-03-2020-08-34-50.json'
+# }
 
-# Randoms labels visuals
-micro_df = pd.DataFrame(columns=['labels', 'numeric_labels', 'microf1'])
-micro_df['microf1'] = [results_base[3], results_10percent[3], results_50percent[3], results_100percent[3]]
-micro_df['labels'] = ['0%', '10%', '50%', '100%']
-micro_df['numeric_labels'] = [0.0, 0.1, 0.5, 1.0]
+# shuffled_words_df = read_files(labeled_paths)
+# shuffled_words_df = melt_dataframe(shuffled_words_df[['label', 'micro_f1', 'macro_f1']])
+# plot_bars(shuffled_words_df, 'label', 'value', hue='attribute', ylabel='f1 score', xlabel='data ablation')
 
-# plot_bars(micro_df, 'labels', 'microf1')
-# scatter_plot(micro_df, 'numeric_labels', 'microf1')
-
-# plot_precision_recall(results_50percent[1])
+# Replacing verbs and nouns
+labeled_paths = {
+    'base': 'results/24-03-2020-13-24-58.json',
+    'replaced words': 'results/26-03-2020-07-15-30.json'
+}
+replaced_words_df = read_files(labeled_paths)
+replaced_words_df = melt_dataframe(replaced_words_df[['label', 'micro_f1', 'macro_f1']])
+plot_bars(replaced_words_df, 'label', 'value', hue='attribute', ylabel='f1 score', xlabel='data ablation')
