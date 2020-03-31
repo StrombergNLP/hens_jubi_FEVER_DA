@@ -1,5 +1,2 @@
-Next line without mutations: 684
+Next line without mutations: 719
 Last mutations by: Hansi
-
-From zhe back: 690
-By: Hulio
