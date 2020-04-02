@@ -30,11 +30,6 @@ data_df['ngrams'] = data_df.apply(lambda x: extract_ngrams(x.claim), axis=1)
 print(data_df[['claim', 'label']])
 
 def balance_data():
-    """
-    Balance dataset by oversampling minority classes to size of majority class.
-    Calculate class weights by giving minority classes proportionally higher weights.
-    Return shuffled dataframe and class weights criterion.
-    """
     # supported_df = data_df[data_df['label'] == 'Supported']
     # refuted_df = data_df[data_df['label'] == 'Refuted']
     # nei_df = data_df[data_df['label'] == 'NotEnoughInfo']
