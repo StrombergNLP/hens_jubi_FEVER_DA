@@ -21,6 +21,10 @@ print('Supported count: {}'.format(len(anno_df.query("label == 'Supported'"))))
 print('Refuted count: {}'.format(len(anno_df.query("label == 'Refuted'"))))
 print('NotEnoughInfo count: {}'.format(len(anno_df.query("label == 'NotEnoughInfo'"))))
 
+anno_df['first_ent'] = anno_df.apply(lambda x: x.entity[0], axis=1)
+anno_df = anno_df.sort_values('first_ent')
+
+anno_df = anno_df[anno_df.columns[:-1]]
 anno_len = len(anno_df.claim)
 train_index = int(anno_len * 0.7)
 dev_index = train_index + int(anno_len * 0.2)
