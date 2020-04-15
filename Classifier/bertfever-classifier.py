@@ -394,8 +394,6 @@ print('Plotting loss complete.')
 if ENABLE_TEST:
     print('Running test...')
     test_micro_f1, test_macro_f1, test_c_matrix = test_model()
-    plot_confusion_matrix(test_c_matrix)
-    print('Micro-f1: {}\nMacro f1: {}'.format(test_micro_f1, test_macro_f1))
     print('Test complete.')
 
 print('Exporting results to json...')
