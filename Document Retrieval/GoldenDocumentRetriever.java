@@ -23,7 +23,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.IOUtils;
 
-public class LuceneTest {
+public class GoldenDocumentRetriever {
     public static void main(String[] args) throws Exception {
 
         // Building the index
