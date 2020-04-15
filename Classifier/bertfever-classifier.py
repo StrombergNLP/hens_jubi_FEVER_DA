@@ -24,10 +24,11 @@ def read_config():
     """ Take the config path as a string and return the config parameters in a map. """
     with open(CONFIG_PATH, 'r') as config_file:
         config = json.load(config_file)
-    return (config['train_data_path'], config['validation_data_path'], config['pretrained_model'], 
-            config['max_len'], config['batch_size'], config['num_labels'], config['learning_rate'], 
-            config['num_epochs'], bool(config['enable_plotting']), 
-            config['output_dir'], bool(config['skip_training']), config['data_sample'], bool(config['enable_cuda']))
+    return (config['train_data_path'], config['validation_data_path'], config['test_data_path'],
+             config['pretrained_model'], config['max_len'], config['batch_size'], config['num_labels'],
+             config['learning_rate'], config['num_epochs'], bool(config['enable_plotting']), 
+             config['output_dir'], bool(config['skip_training']), config['data_sample'],
+             bool(config['enable_cuda']), bool(config['enable_test']))
 
 def check_output_path():
     """ Check that output path exists, otherwise create it. """
@@ -275,6 +276,7 @@ def export_results():
         'config': {
             'train_data_path': TRAIN_DATA_PATH, 
             'validation_data_path': VALIDATION_DATA_PATH, 
+            'test_data_path': TEST_DATA_PATH,
             'data_sample': DATA_SAMPLE,
             'pretrained_model': PRETRAINED_MODEL, 
             'max_len': MAX_LEN, 
@@ -295,6 +297,29 @@ def export_results():
     with open(output_path, mode='w') as outfile:
         json.dump(results, outfile)
 
+def test_model():
+    """ Perform the test. Classify test data in batches, calculate f1 scores. """
+    model.eval()
+
+    epoch_labels = torch.LongTensor()
+    epoch_logits = torch.FloatTensor()
+
+    for index, batch in enumerate(test_dataloader): 
+        batch_input_ids, batch_attention_masks, batch_labels, batch_token_type_ids = batch      # Unpack input from dataloader
+        print('Test batch {} with size {}.'.format(index, batch_labels.size()[0]))
+
+        with torch.no_grad():       # Not computing gradients, saving memory and time 
+            model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)
+            logits = model_output[1]
+
+            # Save batch data to be able to evaluate epoch as a whole
+            epoch_labels = torch.cat((epoch_labels, batch_labels.cpu()))
+            epoch_logits = torch.cat((epoch_logits, logits.cpu()))
+
+    micro_f1, macro_f1, c_matrix = evaluate_model(epoch_logits, epoch_labels)
+    
+    return micro_f1, macro_f1, c_matrix
+
 #--------
 # Main
 #--------
@@ -303,7 +328,7 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-TRAIN_DATA_PATH, VALIDATION_DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE, ENABLE_CUDA = read_config()
+TRAIN_DATA_PATH, VALIDATION_DATA_PATH, TEST_DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE, ENABLE_CUDA, ENABLE_TEST = read_config()
 check_output_path()
 if ENABLE_CUDA: print('Using CUDA on {}.'.format(torch.cuda.get_device_name(0)))
 print('Reading config complete.')
@@ -313,7 +338,8 @@ train_data_df = pd.read_json(TRAIN_DATA_PATH, lines=True)
 validation_data_df = pd.read_json(VALIDATION_DATA_PATH, lines=True)
 train_data_df = train_data_df.head(int(DATA_SAMPLE * len(train_data_df.claim)))     # For sampling consistently 
 validation_data_df = validation_data_df.head(int(DATA_SAMPLE * len(validation_data_df)))
-print('Reading data complete. Training annotations : {} | {} : Validation annotations.'.format(len(train_data_df['claim']), len(validation_data_df['claim'])))
+test_data_df = pd.read_json(TEST_DATA_PATH, lines=True)
+print('Reading data complete. Training annotations: {}\nValidation annotations: {}\nTest annotations: {}'.format(len(train_data_df['claim']), len(validation_data_df['claim']), len(test_data_df['claim'])))
 
 print('Pre-processing data...')
 train_data_df = drop_duplicate_claims(train_data_df)
@@ -322,6 +348,8 @@ train_data_df = concatenate_evidence(train_data_df)
 validation_data_df = concatenate_evidence(validation_data_df)
 train_data_df = convert_labels(train_data_df)
 validation_data_df = convert_labels(validation_data_df)
+# Test data evidence already comes concatenated from our document retrieval
+if ENABLE_TEST: test_data_df = convert_labels(test_data_df)
 print('Pre-processing complete.')
 
 print('Balancing data...')
@@ -335,11 +363,16 @@ train_masks = generate_attention_masks(train_inputs)
 validation_masks = generate_attention_masks(validation_inputs)
 train_labels = train_data_df.label.tolist()
 validation_labels = validation_data_df.label.tolist()
+if ENABLE_TEST: 
+    test_inputs, test_token_type_ids = tokenize_inputs(test_data_df)
+    test_masks = generate_attention_masks(test_inputs)
+    test_labels = test_data_df.label.tolist()
 print('Preparing data complete.')
 
 print('Initialising dataloader...')
 train_dataloader = initialise_dataloader(train_inputs, train_masks, train_labels, train_token_type_ids)
 validation_dataloader = initialise_dataloader(validation_inputs, validation_masks, validation_labels, validation_token_type_ids)
+if ENABLE_TEST: test_dataloader = initialise_dataloader(test_inputs, test_masks, test_labels, test_token_type_ids)
 print('Initialising dataloader complete.')
 
 print('Initialising model...')
@@ -357,6 +390,13 @@ print('Execution time: {}.'.format(datetime.now()-start_time))
 print('Plotting loss...')
 plot_loss(train_loss)
 print('Plotting loss complete.')
+
+if ENABLE_TEST:
+    print('Running test...')
+    test_micro_f1, test_macro_f1, test_c_matrix = test_model()
+    plot_confusion_matrix(test_c_matrix)
+    print('Micro-f1: {}\nMacro f1: {}'.format(test_micro_f1, test_macro_f1))
+    print('Test complete.')
 
 print('Exporting results to json...')
 export_results()
