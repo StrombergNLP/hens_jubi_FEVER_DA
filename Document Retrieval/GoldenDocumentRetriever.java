@@ -58,22 +58,23 @@ public class GoldenDocumentRetriever {
 
         // Read our annotations
         System.out.println("Querying with claims...");
-        String testPath = "../Data Generation/Final Dataset/annotations_test.tsv";
+        String testPath = "../Data Generation/Final Dataset/annotations_dev.tsv";
         Scanner testSc = new Scanner(new File(testPath));
         testSc.nextLine(); // skip header
 
-        FileWriter csvWriter = new FileWriter("annotations_test_retrieved_evidence.tsv");
+        FileWriter csvWriter = new FileWriter("annotations_dev_retrieved_evidence.tsv");
         csvWriter.append("claim\tevidence\tlabel\n");
 
         while(testSc.hasNextLine()) {
             String[] line = testSc.nextLine().split("\t");
             String claim = line[1];
+            String escapedClaim = QueryParser.escape(claim);
             String label = line[2];
 
             // Searching the index
             QueryParser parser = new QueryParser("evidence", analyzer);
-            Query query = parser.parse(claim);
-            int k = 10;
+            Query query = parser.parse(escapedClaim);
+            int k = 5;
             ScoreDoc[] hits = iSearcher.search(query, k).scoreDocs;
 
             // System.out.println(String.format("\nClaim: %s\nResults:", claim));
@@ -84,7 +85,7 @@ public class GoldenDocumentRetriever {
                 // System.out.println(String.format("\t%d: %s", i + 1, hitDoc.get("evidence")));
             }
 
-            String joinedEvidence = String.join(" .", evidence); // Concatenate to one string
+            String joinedEvidence = String.join(" ", evidence); // Concatenate to one string
 
             // Split into sentences
             InputStream modelIn = new FileInputStream("da-sent.bin");
@@ -101,11 +102,6 @@ public class GoldenDocumentRetriever {
 
             // System.out.println("\n" + claim);
             for(int i = 0; i < sentences.length; i++) {
-                String s = sentences[i];
-                // Cut off period at beginning of sentence that OpenNLP seems to like adding
-                if (s.startsWith(".")) {
-                    sentences[i] = s.substring(1);
-                }
                 addSent(sentIWriter, sentences[i], i);
                 // System.out.println(sentences[i]);
             }
@@ -115,8 +111,8 @@ public class GoldenDocumentRetriever {
             DirectoryReader sentIReader = DirectoryReader.open(sentDirectory);
             IndexSearcher sentISearcher = new IndexSearcher(sentIReader);
             QueryParser sentParser = new QueryParser("sentence", sentAnalyzer);
-            Query sentQuery = sentParser.parse(claim);
-            int sentK = 3;
+            Query sentQuery = sentParser.parse(escapedClaim);
+            int sentK = 2;
             ScoreDoc[] sentHits = sentISearcher.search(sentQuery, sentK).scoreDocs;
 
             List<String> selectedSentences = new ArrayList<>();
@@ -125,7 +121,7 @@ public class GoldenDocumentRetriever {
                 selectedSentences.add(hitDoc.get("sentence"));
             }
 
-            String joinedSelectedEvidence = String.join(" .", selectedSentences); // Concatenate to one string
+            String joinedSelectedEvidence = String.join(" ", selectedSentences); // Concatenate to one string
             csvWriter.append(claim).append("\t").append(joinedSelectedEvidence).append("\t").append(label).append("\n");
 
             sentIReader.close();
@@ -139,6 +135,7 @@ public class GoldenDocumentRetriever {
         iReader.close();
         directory.close();
         IOUtils.rm(indexPath);
+        System.out.println("Done.");
     }
 
     private static void addDoc(IndexWriter w, String evidence, String title) throws IOException {
