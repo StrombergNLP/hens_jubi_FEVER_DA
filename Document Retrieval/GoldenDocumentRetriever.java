@@ -62,8 +62,8 @@ public class GoldenDocumentRetriever {
         Scanner testSc = new Scanner(new File(testPath));
         testSc.nextLine(); // skip header
 
-        FileWriter csvWriter = new FileWriter("annotations_dev_retrieved_evidence.tsv");
-        csvWriter.append("claim\tevidence\tlabel\n");
+        FileWriter outWriter = new FileWriter("annotations_dev_retrieved_evidence.jsonl");
+        // outWriter.append("claim\tevidence\tlabel\n");
 
         while(testSc.hasNextLine()) {
             String[] line = testSc.nextLine().split("\t");
@@ -122,7 +122,10 @@ public class GoldenDocumentRetriever {
             }
 
             String joinedSelectedEvidence = String.join(" ", selectedSentences); // Concatenate to one string
-            csvWriter.append(claim).append("\t").append(joinedSelectedEvidence).append("\t").append(label).append("\n");
+            // outWriter.append(claim).append("\t").append(joinedSelectedEvidence).append("\t").append(label).append("\n");
+            outWriter.append("{\"claim\":\"").append(claim.replace("\"", "\\\""))
+                .append("\",\"evidence\":\"").append(joinedSelectedEvidence.replace("\"", "\\\""))
+                .append("\",\"label\":\"").append(label).append("\"}\n");
 
             sentIReader.close();
             sentDirectory.close();
@@ -130,7 +133,7 @@ public class GoldenDocumentRetriever {
         }
         
         // Cleanup
-        csvWriter.close();
+        outWriter.close();
         testSc.close();
         iReader.close();
         directory.close();
