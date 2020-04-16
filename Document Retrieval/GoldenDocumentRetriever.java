@@ -1,6 +1,8 @@
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -10,6 +12,7 @@ import java.util.Scanner;
 import org.apache.lucene.analysis.da.DanishAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
@@ -23,13 +26,16 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.IOUtils;
 
+import opennlp.tools.sentdetect.SentenceDetectorME;
+import opennlp.tools.sentdetect.SentenceModel;
+
 public class GoldenDocumentRetriever {
     public static void main(String[] args) throws Exception {
 
-        // Building the index
+        // Building the wiki index
         System.out.println("Building index...");
         DanishAnalyzer analyzer = new DanishAnalyzer();
-        Path indexPath = Files.createTempDirectory("tempIndex");
+        Path indexPath = Files.createTempDirectory("wikiIndex");
         Directory directory = FSDirectory.open(indexPath);
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         IndexWriter iWriter = new IndexWriter(directory, config);
@@ -67,19 +73,64 @@ public class GoldenDocumentRetriever {
             // Searching the index
             QueryParser parser = new QueryParser("evidence", analyzer);
             Query query = parser.parse(claim);
-            int k = 3;
+            int k = 10;
             ScoreDoc[] hits = iSearcher.search(query, k).scoreDocs;
 
-            System.out.println(String.format("\nClaim: %s\nResults:", claim));
+            // System.out.println(String.format("\nClaim: %s\nResults:", claim));
             List<String> evidence = new ArrayList<>();
             for (int i = 0; i < hits.length; i++) {
                 Document hitDoc = iSearcher.doc(hits[i].doc);
                 evidence.add(hitDoc.get("evidence"));
-                System.out.println(String.format("\t%d: %s", i + 1, hitDoc.get("evidence")));
+                // System.out.println(String.format("\t%d: %s", i + 1, hitDoc.get("evidence")));
             }
 
             String joinedEvidence = String.join(" .", evidence); // Concatenate to one string
-            csvWriter.append(claim).append("\t").append(joinedEvidence).append("\t").append(label).append("\n");
+
+            // Split into sentences
+            InputStream modelIn = new FileInputStream("da-sent.bin");
+            SentenceModel sentModel = new SentenceModel(modelIn);
+            SentenceDetectorME sentenceDetector = new SentenceDetectorME(sentModel);
+            String[] sentences = sentenceDetector.sentDetect(joinedEvidence);
+
+            // Building the sentence index
+            DanishAnalyzer sentAnalyzer = new DanishAnalyzer();
+            Path sentIndexPath = Files.createTempDirectory("sentIndex");
+            Directory sentDirectory = FSDirectory.open(sentIndexPath);
+            IndexWriterConfig sentConfig = new IndexWriterConfig(sentAnalyzer);
+            IndexWriter sentIWriter = new IndexWriter(sentDirectory, sentConfig);
+
+            // System.out.println("\n" + claim);
+            for(int i = 0; i < sentences.length; i++) {
+                String s = sentences[i];
+                // Cut off period at beginning of sentence that OpenNLP seems to like adding
+                if (s.startsWith(".")) {
+                    sentences[i] = s.substring(1);
+                }
+                addSent(sentIWriter, sentences[i], i);
+                // System.out.println(sentences[i]);
+            }
+            sentIWriter.close();
+
+            // Searching the sent index
+            DirectoryReader sentIReader = DirectoryReader.open(sentDirectory);
+            IndexSearcher sentISearcher = new IndexSearcher(sentIReader);
+            QueryParser sentParser = new QueryParser("sentence", sentAnalyzer);
+            Query sentQuery = sentParser.parse(claim);
+            int sentK = 3;
+            ScoreDoc[] sentHits = sentISearcher.search(sentQuery, sentK).scoreDocs;
+
+            List<String> selectedSentences = new ArrayList<>();
+            for (int j = 0; j < sentHits.length; j++) {
+                Document hitDoc = sentISearcher.doc(sentHits[j].doc);
+                selectedSentences.add(hitDoc.get("sentence"));
+            }
+
+            String joinedSelectedEvidence = String.join(" .", selectedSentences); // Concatenate to one string
+            csvWriter.append(claim).append("\t").append(joinedSelectedEvidence).append("\t").append(label).append("\n");
+
+            sentIReader.close();
+            sentDirectory.close();
+            IOUtils.rm(sentIndexPath);
         }
         
         // Cleanup
@@ -94,6 +145,13 @@ public class GoldenDocumentRetriever {
         Document doc = new Document();
         doc.add(new Field("evidence", evidence, TextField.TYPE_STORED));
         doc.add(new Field("title", title, StringField.TYPE_STORED));
+        w.addDocument(doc);
+    }
+
+    private static void addSent(IndexWriter w, String sentence, int index) throws IOException {
+        Document doc = new Document();
+        doc.add(new Field("sentence", sentence, TextField.TYPE_STORED));
+        doc.add(new IntPoint("index", index));
         w.addDocument(doc);
     }
 }
