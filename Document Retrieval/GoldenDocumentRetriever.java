@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -66,7 +68,10 @@ public class GoldenDocumentRetriever {
         Scanner testSc = new Scanner(new File(testPath));
         testSc.nextLine(); // skip header
 
-        FileWriter outWriter = new FileWriter("annotations_dev_retrieved_evidence.jsonl");
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
+        LocalDateTime now = LocalDateTime.now();
+        String outFileName = "out_" + dtf.format(now) + ".jsonl";
+        FileWriter outWriter = new FileWriter(outFileName);
         // outWriter.append("claim\tevidence\tlabel\n");
 
         // Set up models for tokenizing and POS tagging
