@@ -26,8 +26,12 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.IOUtils;
 
+import opennlp.tools.postag.POSModel;
+import opennlp.tools.postag.POSTaggerME;
 import opennlp.tools.sentdetect.SentenceDetectorME;
 import opennlp.tools.sentdetect.SentenceModel;
+import opennlp.tools.tokenize.TokenizerME;
+import opennlp.tools.tokenize.TokenizerModel;
 
 public class GoldenDocumentRetriever {
     public static void main(String[] args) throws Exception {
@@ -65,10 +69,26 @@ public class GoldenDocumentRetriever {
         FileWriter outWriter = new FileWriter("annotations_dev_retrieved_evidence.jsonl");
         // outWriter.append("claim\tevidence\tlabel\n");
 
+        // Set up models for tokenizing and POS tagging
+        InputStream tokenModelIn = new FileInputStream("da-token.bin");
+        TokenizerModel tokenModel = new TokenizerModel(tokenModelIn);
+        TokenizerME tokenizer = new TokenizerME(tokenModel);
+        InputStream POSModelIn = new FileInputStream("da-pos-perceptron.bin");
+        POSModel POSModel = new POSModel(POSModelIn);
+        POSTaggerME POSTagger = new POSTaggerME(POSModel);
+
         while(testSc.hasNextLine()) {
             String[] line = testSc.nextLine().split("\t");
             String claim = line[1];
-            String escapedClaim = QueryParser.escape(claim);
+            String[] tokenizedClaim = tokenizer.tokenize(claim);
+            String[] claimPOS = POSTagger.tag(tokenizedClaim);
+            String nounClaim = "";
+            for (int i = 0; i < tokenizedClaim.length; i++) {
+                String token = tokenizedClaim[i];
+                String tag = claimPOS[i];
+                if (tag.startsWith("N")) nounClaim += " " + token;
+            }
+            String escapedClaim = QueryParser.escape(nounClaim.trim());
             String label = line[2];
 
             // Searching the index
