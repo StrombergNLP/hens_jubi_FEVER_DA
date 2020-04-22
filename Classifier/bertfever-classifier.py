@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sn
 import matplotlib.pyplot as plt
+import glob
 from tqdm import trange
 from torch.nn.utils.rnn import pad_sequence
 from torch.nn import CrossEntropyLoss
@@ -27,14 +28,17 @@ def read_config():
     return (config['train_data_path'], config['validation_data_path'], config['test_data_path'],
              config['pretrained_model'], config['max_len'], config['batch_size'], config['num_labels'],
              config['learning_rate'], config['num_epochs'], bool(config['enable_plotting']), 
-             config['output_dir'], bool(config['skip_training']), config['data_sample'],
-             bool(config['enable_cuda']), bool(config['enable_test']))
+             config['output_dir'], bool(config['enable_training']), config['data_sample'],
+             bool(config['enable_cuda']), bool(config['enable_test']), config['model_save_dir'])
 
-def check_output_path():
+def check_required_paths():
     """ Check that output path exists, otherwise create it. """
     if not os.path.isdir(OUTPUT_DIR):
         os.mkdir(OUTPUT_DIR)
         print('Output directory was not found. Created /{}.'.format(OUTPUT_DIR))
+    if not os.path.isdir(MODEL_SAVE_DIR):
+        os.mkdir(MODEL_SAVE_DIR)
+        print('Model directory was not found. Created /{}.'.format(MODEL_SAVE_DIR))
 
 def drop_duplicate_claims(df):
     """ Drops rows with duplicate values in claim column. Modifies DF in place! """
@@ -93,6 +97,7 @@ def tokenize_inputs(df):
     input_ids_1 = generate_input_ids(df.evidence, tokenizer)
     token_type_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.create_token_type_ids_from_sequences)
     input_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.build_inputs_with_special_tokens) # Add special tokens like [CLS] and [SEP]
+    tokenizer.save_vocabulary(MODEL_SAVE_DIR)
     return input_ids, token_type_ids
 
 def generate_input_ids(sequences, tokenizer):
@@ -228,9 +233,10 @@ def validation_epoch():
 def train_model():
 
     for epoch in trange(NUM_EPOCHS, desc="Epoch"):
-        if not SKIP_TRAINING: training_epoch()
+        training_epoch()
         micro_f1, macro_f1, c_matrix = validation_epoch()
     
+    model.save_pretrained(MODEL_SAVE_DIR)
     return micro_f1, macro_f1, c_matrix
 
 def evaluate_model(logits, epoch_labels):
@@ -283,7 +289,7 @@ def export_results():
             'batch_size': BATCH_SIZE, 
             'num_labels': NUM_LABELS, 
             'learning_rate': LEARNING_RATE, 
-            'skip_training': SKIP_TRAINING,
+            'skip_training': ENABLE_TRAINING,
             'num_epochs': NUM_EPOCHS, 
             'enable_cuda': ENABLE_CUDA
         }, 
@@ -328,9 +334,18 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-TRAIN_DATA_PATH, VALIDATION_DATA_PATH, TEST_DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, ENABLE_PLOTTING, OUTPUT_DIR, SKIP_TRAINING, DATA_SAMPLE, ENABLE_CUDA, ENABLE_TEST = read_config()
-check_output_path()
+TRAIN_DATA_PATH, VALIDATION_DATA_PATH, TEST_DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, ENABLE_PLOTTING, OUTPUT_DIR, ENABLE_TRAINING, DATA_SAMPLE, ENABLE_CUDA, ENABLE_TEST, MODEL_SAVE_DIR = read_config()
+check_required_paths()
 if ENABLE_CUDA: print('Using CUDA on {}.'.format(torch.cuda.get_device_name(0)))
+# Use most recent .jsonl file in current directory if no test path was specified to be compatible with end-to-end process
+if ENABLE_TEST and TEST_DATA_PATH == "":
+    jsonl_files = glob.glob('*.jsonl')
+    if len(jsonl_files):
+        TEST_DATA_PATH = max(jsonl_files, key=os.path.getctime)
+        print('No test path found. Using {}.'.format(TEST_DATA_PATH))
+    else:
+        print('No test path specified and no .jsonl files found in current directory! Aborting.')
+        quit()
 print('Reading config complete.')
 
 print('Reading data...')
@@ -380,22 +395,25 @@ model = initialise_model()
 optimiser, scheduler = initialise_optimiser()
 print('Initialising model complete.')
 
-print('Training model...')
-train_loss = []
-micro_f1, macro_f1, c_matrix = train_model()
-print('Training model complete.')
+if ENABLE_TRAINING:
+    print('Training model...')
+    train_loss = []
+    micro_f1, macro_f1, c_matrix = train_model()
+    print('Training model complete.')
 
 print('Execution time: {}.'.format(datetime.now()-start_time))
 
-print('Plotting loss...')
-plot_loss(train_loss)
-print('Plotting loss complete.')
+if ENABLE_TRAINING:
+    print('Plotting loss...')
+    plot_loss(train_loss)
+    print('Plotting loss complete.')
 
 if ENABLE_TEST:
     print('Running test...')
     test_micro_f1, test_macro_f1, test_c_matrix = test_model()
     print('Test complete.')
 
-print('Exporting results to json...')
-export_results()
-print('Export complete.')
+if ENABLE_TRAINING:
+    print('Exporting results to json...')
+    export_results()
+    print('Export complete.')
