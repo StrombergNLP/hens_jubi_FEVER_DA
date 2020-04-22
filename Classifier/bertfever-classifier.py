@@ -36,9 +36,10 @@ def check_required_paths():
     if not os.path.isdir(OUTPUT_DIR):
         os.mkdir(OUTPUT_DIR)
         print('Output directory was not found. Created /{}.'.format(OUTPUT_DIR))
-    if not os.path.isdir(MODEL_SAVE_DIR):
-        os.mkdir(MODEL_SAVE_DIR)
-        print('Model directory was not found. Created /{}.'.format(MODEL_SAVE_DIR))
+    if ENABLE_TRAINING:
+        if not os.path.isdir(MODEL_SAVE_DIR):
+            os.mkdir(MODEL_SAVE_DIR)
+            print('Model directory was not found. Created /{}.'.format(MODEL_SAVE_DIR))
 
 def drop_duplicate_claims(df):
     """ Drops rows with duplicate values in claim column. Modifies DF in place! """
@@ -53,16 +54,23 @@ def concatenate_evidence(df):
     df.evidence = df.evidence.transform(lambda x: ' '.join(x))
     return df
 
-def convert_labels(df):
-    """ Convert labels to numeric values. Edits the dataframe in place. """
+def convert_labels(df, columns=['label'], reverse=False):
+    """ Convert labels in provided columns to numeric values (or back to text). Edits the dataframe in place. """
+    if reverse:
+        labels_vals = {
+            0: 'Refuted',
+            1: 'Supported',
+            2: 'NotEnoughInfo'
+        }
+    else:
+        labels_vals = {
+            'Refuted': 0,
+            'Supported': 1, 
+            'NotEnoughInfo': 2    
+        }
 
-    labels_vals = {
-        'Refuted': 0,
-        'Supported': 1, 
-        'NotEnoughInfo': 2    
-    }
-
-    df.label = df.label.apply(lambda x: labels_vals[x])
+    for col in columns:
+        df[col] = df[col].apply(lambda x: labels_vals[x])
     return df
 
 def balance_data(df):
@@ -227,7 +235,7 @@ def validation_epoch():
             epoch_labels = torch.cat((epoch_labels, batch_labels.cpu()))
             epoch_logits = torch.cat((epoch_logits, logits.cpu()))
 
-    micro_f1, macro_f1, c_matrix = evaluate_model(epoch_logits, epoch_labels)
+    micro_f1, macro_f1, c_matrix, preds = evaluate_model(epoch_logits, epoch_labels)
     
     return micro_f1, macro_f1, c_matrix
         
@@ -257,7 +265,7 @@ def evaluate_model(logits, epoch_labels):
     print('Macro f1: {}'.format(macro_f1))
     print(c_matrix)
 
-    return micro_f1, macro_f1, c_matrix
+    return micro_f1, macro_f1, c_matrix, preds
 
 def plot_confusion_matrix(c_matrix):
     df_cm = pd.DataFrame(c_matrix, range(NUM_LABELS), range(NUM_LABELS))
@@ -278,7 +286,7 @@ def plot_loss(train_loss):
     plt.plot(train_loss)
     plt.show()
 
-def export_results():
+def export_training_results():
     results = {
         'config': {
             'train_data_path': TRAIN_DATA_PATH, 
@@ -299,7 +307,7 @@ def export_results():
         'macro_f1': macro_f1, 
         'confusion_matrix': c_matrix.tolist()
     }
-    filename = "{}.json".format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S"))
+    filename = "train_{}.json".format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S"))
     output_path = OUTPUT_DIR + filename 
     with open(output_path, mode='w') as outfile:
         json.dump(results, outfile)
@@ -308,8 +316,8 @@ def test_model():
     """ Perform the test. Classify test data in batches, calculate f1 scores. """
     model.eval()
 
-    epoch_labels = torch.LongTensor()
-    epoch_logits = torch.FloatTensor()
+    test_labels = torch.LongTensor()
+    test_logits = torch.FloatTensor()
 
     for index, batch in enumerate(test_dataloader): 
         batch_input_ids, batch_attention_masks, batch_labels, batch_token_type_ids = batch      # Unpack input from dataloader
@@ -319,13 +327,20 @@ def test_model():
             model_output = model(batch_input_ids, token_type_ids=batch_token_type_ids, attention_mask=batch_attention_masks, labels=batch_labels)
             logits = model_output[1]
 
-            # Save batch data to be able to evaluate epoch as a whole
-            epoch_labels = torch.cat((epoch_labels, batch_labels.cpu()))
-            epoch_logits = torch.cat((epoch_logits, logits.cpu()))
+            # Save batch data to be able to evaluate test as a whole
+            test_labels = torch.cat((test_labels, batch_labels.cpu()))
+            test_logits = torch.cat((test_logits, logits.cpu()))
 
-    micro_f1, macro_f1, c_matrix = evaluate_model(epoch_logits, epoch_labels)
+    micro_f1, macro_f1, c_matrix, preds = evaluate_model(test_logits, test_labels)
     
-    return micro_f1, macro_f1, c_matrix
+    return micro_f1, macro_f1, c_matrix, preds
+
+def export_test_results(df, preds):
+    df['prediction'] = preds
+    df = convert_labels(df, ['label', 'prediction'], reverse=True)
+    filename = "test_{}.csv".format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S"))
+    output_path = OUTPUT_DIR + filename 
+    test_data_df.to_csv(OUTPUT_DIR + filename, sep=';')
 
 #--------
 # Main
@@ -415,12 +430,17 @@ if ENABLE_TRAINING:
     plot_loss(train_loss)
     print('Plotting loss complete.')
 
+    print('Exporting training results to json...')
+    export_training_results()
+    print('Export complete.')
+
 if ENABLE_TEST:
     print('Running test...')
-    test_micro_f1, test_macro_f1, test_c_matrix = test_model()
+    test_micro_f1, test_macro_f1, test_c_matrix, test_preds = test_model()
     print('Test complete.')
 
-if ENABLE_TRAINING:
-    print('Exporting results to json...')
-    export_results()
+    print('Exporting test results to csv...')
+    export_test_results(test_data_df, test_preds)
     print('Export complete.')
+
+
