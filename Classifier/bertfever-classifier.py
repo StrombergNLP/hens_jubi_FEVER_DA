@@ -349,35 +349,40 @@ if ENABLE_TEST and TEST_DATA_PATH == "":
 print('Reading config complete.')
 
 print('Reading data...')
-train_data_df = pd.read_json(TRAIN_DATA_PATH, lines=True)
-validation_data_df = pd.read_json(VALIDATION_DATA_PATH, lines=True)
-train_data_df = train_data_df.head(int(DATA_SAMPLE * len(train_data_df.claim)))     # For sampling consistently 
-validation_data_df = validation_data_df.head(int(DATA_SAMPLE * len(validation_data_df)))
-test_data_df = pd.read_json(TEST_DATA_PATH, lines=True)
-print('Reading data complete. Training annotations: {}\nValidation annotations: {}\nTest annotations: {}'.format(len(train_data_df['claim']), len(validation_data_df['claim']), len(test_data_df['claim'])))
+if ENABLE_TRAINING:
+    train_data_df = pd.read_json(TRAIN_DATA_PATH, lines=True)
+    validation_data_df = pd.read_json(VALIDATION_DATA_PATH, lines=True)
+    train_data_df = train_data_df.head(int(DATA_SAMPLE * len(train_data_df.claim)))     # For sampling consistently 
+    validation_data_df = validation_data_df.head(int(DATA_SAMPLE * len(validation_data_df)))
+if ENABLE_TEST:
+    test_data_df = pd.read_json(TEST_DATA_PATH, lines=True)
+print('Reading data complete.')
 
 print('Pre-processing data...')
-train_data_df = drop_duplicate_claims(train_data_df)
-validation_data_df = drop_duplicate_claims(validation_data_df)
-train_data_df = concatenate_evidence(train_data_df)
-validation_data_df = concatenate_evidence(validation_data_df)
-train_data_df = convert_labels(train_data_df)
-validation_data_df = convert_labels(validation_data_df)
+if ENABLE_TRAINING:
+    train_data_df = drop_duplicate_claims(train_data_df)
+    validation_data_df = drop_duplicate_claims(validation_data_df)
+    train_data_df = concatenate_evidence(train_data_df)
+    validation_data_df = concatenate_evidence(validation_data_df)
+    train_data_df = convert_labels(train_data_df)
+    validation_data_df = convert_labels(validation_data_df)
 # Test data evidence already comes concatenated from our document retrieval
 if ENABLE_TEST: test_data_df = convert_labels(test_data_df)
 print('Pre-processing complete.')
 
-print('Balancing data...')
-train_data_df, criterion = balance_data(train_data_df)
-print('Balancing data complete. Size of train data df: {}'.format(len(train_data_df.label)))
+if ENABLE_TRAINING:
+    print('Balancing data...')
+    train_data_df, criterion = balance_data(train_data_df)
+    print('Balancing data complete. Size of train data df: {}'.format(len(train_data_df.label)))
 
 print('Preparing data...')
-train_inputs, train_token_type_ids = tokenize_inputs(train_data_df)
-validation_inputs, validation_token_type_ids = tokenize_inputs(validation_data_df)
-train_masks = generate_attention_masks(train_inputs)
-validation_masks = generate_attention_masks(validation_inputs)
-train_labels = train_data_df.label.tolist()
-validation_labels = validation_data_df.label.tolist()
+if ENABLE_TRAINING:
+    train_inputs, train_token_type_ids = tokenize_inputs(train_data_df)
+    validation_inputs, validation_token_type_ids = tokenize_inputs(validation_data_df)
+    train_masks = generate_attention_masks(train_inputs)
+    validation_masks = generate_attention_masks(validation_inputs)
+    train_labels = train_data_df.label.tolist()
+    validation_labels = validation_data_df.label.tolist()
 if ENABLE_TEST: 
     test_inputs, test_token_type_ids = tokenize_inputs(test_data_df)
     test_masks = generate_attention_masks(test_inputs)
@@ -385,8 +390,9 @@ if ENABLE_TEST:
 print('Preparing data complete.')
 
 print('Initialising dataloader...')
-train_dataloader = initialise_dataloader(train_inputs, train_masks, train_labels, train_token_type_ids)
-validation_dataloader = initialise_dataloader(validation_inputs, validation_masks, validation_labels, validation_token_type_ids)
+if ENABLE_TRAINING:
+    train_dataloader = initialise_dataloader(train_inputs, train_masks, train_labels, train_token_type_ids)
+    validation_dataloader = initialise_dataloader(validation_inputs, validation_masks, validation_labels, validation_token_type_ids)
 if ENABLE_TEST: test_dataloader = initialise_dataloader(test_inputs, test_masks, test_labels, test_token_type_ids)
 print('Initialising dataloader complete.')
 
