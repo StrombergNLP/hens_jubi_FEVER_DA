@@ -97,7 +97,8 @@ def tokenize_inputs(df):
     input_ids_1 = generate_input_ids(df.evidence, tokenizer)
     token_type_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.create_token_type_ids_from_sequences)
     input_ids = transform_input_ids(input_ids_0, input_ids_1, tokenizer.build_inputs_with_special_tokens) # Add special tokens like [CLS] and [SEP]
-    tokenizer.save_vocabulary(MODEL_SAVE_DIR)
+    if not os.path.exists(MODEL_SAVE_DIR + 'vocab.txt'): 
+        tokenizer.save_vocabulary(MODEL_SAVE_DIR) # Save vocab if not already in model directory
     return input_ids, token_type_ids
 
 def generate_input_ids(sequences, tokenizer):
