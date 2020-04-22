@@ -82,7 +82,7 @@ public class GoldenDocumentRetriever {
 
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
         LocalDateTime now = LocalDateTime.now();
-        String outFileName = "out_" + dtf.format(now) + ".jsonl";
+        String outFileName = "out/retrieval_" + dtf.format(now) + ".jsonl";
         FileWriter outWriter = new FileWriter(outFileName);
         // outWriter.append("claim\tevidence\tlabel\n");
 

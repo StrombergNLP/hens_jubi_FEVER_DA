@@ -355,7 +355,7 @@ check_required_paths()
 if ENABLE_CUDA: print('Using CUDA on {}.'.format(torch.cuda.get_device_name(0)))
 # Use most recent .jsonl file in current directory if no test path was specified to be compatible with end-to-end process
 if ENABLE_TEST and TEST_DATA_PATH == "":
-    jsonl_files = glob.glob('*.jsonl')
+    jsonl_files = glob.glob('out/*.jsonl')
     if len(jsonl_files):
         TEST_DATA_PATH = max(jsonl_files, key=os.path.getctime)
         print('No test path found. Using {}.'.format(TEST_DATA_PATH))
