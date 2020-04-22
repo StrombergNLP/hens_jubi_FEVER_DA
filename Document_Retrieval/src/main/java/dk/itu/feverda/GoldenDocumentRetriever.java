@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -38,38 +39,46 @@ import org.apache.lucene.analysis.da.DanishAnalyzer;
 
 public class GoldenDocumentRetriever {
     public static void main(String[] args) throws Exception {
-        // Building the wiki index
-        System.out.println("Building index...");
-        DanishAnalyzer analyzer = new DanishAnalyzer();
-        Path indexPath = Files.createTempDirectory("wikiIndex");
-        Directory directory = FSDirectory.open(indexPath);
-        IndexWriterConfig config = new IndexWriterConfig(analyzer);
-        IndexWriter iWriter = new IndexWriter(directory, config);
-
-        // Build index from Wikipedia data
-        String wikiPath = "dawiki-latest-pages-articles-parsed.tsv";
+        // Wiki index
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        Scanner wikiSc = new Scanner(classLoader.getResourceAsStream(wikiPath));
-        wikiSc.nextLine(); // skip header
-        List<String> invalidLines = new ArrayList<>();
-        while(wikiSc.hasNextLine()) {
-            String line = wikiSc.nextLine();
-            // System.out.println(line);
-            String[] splitline = line.split("\t");
-            if (splitline.length == 4) {
-                String evidence = splitline[1];
-                String title = splitline[3];
-                addDoc(iWriter, evidence, title);
-            } else {
-                invalidLines.add(line);
-            }   
+        DanishAnalyzer analyzer = new DanishAnalyzer();
+        Path indexPath = Paths.get("wikiIndex/");
+        Directory directory;
+        // Check if wiki index exists from previous build
+        if (Files.exists(indexPath)) {
+            System.out.println("Reusing previous wiki index.");
+            directory = FSDirectory.open(indexPath);
+        } else {
+            System.out.println("Building wiki index...");
+            Files.createDirectory(indexPath);
+            directory = FSDirectory.open(indexPath);
+            IndexWriterConfig config = new IndexWriterConfig(analyzer);
+            IndexWriter iWriter = new IndexWriter(directory, config);
+
+            // Build index from Wikipedia data
+            String wikiPath = "dawiki-latest-pages-articles-parsed.tsv";
+            Scanner wikiSc = new Scanner(classLoader.getResourceAsStream(wikiPath));
+            wikiSc.nextLine(); // skip header
+            List<String> invalidLines = new ArrayList<>();
+            while(wikiSc.hasNextLine()) {
+                String line = wikiSc.nextLine();
+                // System.out.println(line);
+                String[] splitline = line.split("\t");
+                if (splitline.length == 4) {
+                    String evidence = splitline[1];
+                    String title = splitline[3];
+                    addDoc(iWriter, evidence, title);
+                } else {
+                    invalidLines.add(line);
+                }   
+            }
+            System.out.println("Unable to parse " + invalidLines.size() + " lines.");
+            // for (String line : invalidLines) {
+            //     System.out.println("INVALID: " + line);
+            // }
+            wikiSc.close();
+            iWriter.close();
         }
-        System.out.println("Unable to parse " + invalidLines.size() + " lines.");
-        // for (String line : invalidLines) {
-        //     System.out.println("INVALID: " + line);
-        // }
-        wikiSc.close();
-        iWriter.close();
 
         DirectoryReader iReader = DirectoryReader.open(directory);
         IndexSearcher iSearcher = new IndexSearcher(iReader);
@@ -175,7 +184,7 @@ public class GoldenDocumentRetriever {
         testSc.close();
         iReader.close();
         directory.close();
-        IOUtils.rm(indexPath);
+        // IOUtils.rm(indexPath);
         System.out.println("Done.");
     }
 
