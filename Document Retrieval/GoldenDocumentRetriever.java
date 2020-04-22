@@ -64,7 +64,7 @@ public class GoldenDocumentRetriever {
 
         // Read our annotations
         System.out.println("Querying with claims...");
-        String testPath = "../Data Generation/Final Dataset/annotations_dev.tsv";
+        String testPath = args.length > 0 ? args[0] : "../Data Generation/Final Dataset/annotations_dev.tsv";
         Scanner testSc = new Scanner(new File(testPath));
         testSc.nextLine(); // skip header
 
