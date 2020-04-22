@@ -12,6 +12,9 @@ plugins {
 
     // Apply the application plugin to add support for building a CLI application.
     id 'application'
+
+    // Shadow for making a fat jar
+    id 'com.github.johnrengelman.shadow' version '5.2.0'
 }
 
 repositories {
@@ -42,7 +45,7 @@ application {
 jar {
   manifest {
     attributes(
-      'Class-Path': configurations.compile.collect { it.getName() }.join(' '),
+      'Class-Path': configurations.compile.collect { it.isDirectory() ? it : zipTree(it) },
       'Main-Class': 'dk.itu.feverda.GoldenDocumentRetriever'
     )
   }
