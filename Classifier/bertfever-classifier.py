@@ -342,6 +342,16 @@ def export_test_results(df, preds):
     output_path = OUTPUT_DIR + filename 
     test_data_df.to_csv(OUTPUT_DIR + filename, sep=';')
 
+    # Print to console
+    print("\nTest results:")
+    for index, row in test_data_df.iterrows():
+        print("\nClaim:")
+        print(row.claim)
+        print("\nPrediction:")
+        print(row.prediction)
+        print("\nCorrect?")
+        print(str(row.label == row.prediction))
+
 #--------
 # Main
 #--------
@@ -442,5 +452,3 @@ if ENABLE_TEST:
     print('Exporting test results to csv...')
     export_test_results(test_data_df, test_preds)
     print('Export complete.')
-
-
