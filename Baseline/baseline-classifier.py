@@ -14,17 +14,22 @@ def calculate_cos_similarity(row):
     return cosine_similarity(matrix_df)[0][1]    
 
 # Read data
-data_df = pd.read_json('data/annotations-filled-nei.jsonl', lines=True)
-data_df.evidence = data_df.evidence.apply(lambda x: ' '.join(x))    # Concat evidence for each row into one string
+train_df = pd.read_json('data/train_data.jsonl', lines=True)
+test_df = pd.read_json('data/test_data.jsonl', lines=True)
+
+# Concat evidence for each row into one string
+train_df.evidence = train_df.evidence.apply(lambda x: ' '.join(x))
+# test_df.evidence = test_df.evidence.apply(lambda x: ' '.join(x))   
 
 vectorizer = TfidfVectorizer() 
 
-data_df['cosine_similarity'] = data_df.apply(lambda x: calculate_cos_similarity(x), axis=1)
-print(data_df)
+train_df['cosine_similarity'] = train_df.apply(lambda x: calculate_cos_similarity(x), axis=1)
+test_df['cosine_similarity'] = test_df.apply(lambda x: calculate_cos_similarity(x), axis=1)
+# print(test_df)
 
 # Split
-TEST_SIZE = 0.1
-train_df, test_df = train_test_split(data_df, test_size=TEST_SIZE)
+# TEST_SIZE = 0.1
+# train_df, test_df = train_test_split(test_df, test_size=TEST_SIZE)
 
 LABELS = ['Refuted', 'Supported', 'NotEnoughInfo']
 means = []
@@ -43,7 +48,7 @@ def find_nearest_label(row):
 
 test_df['prediction'] = test_df.apply(lambda x: find_nearest_label(x), axis=1)
 
-print(test_df)
+print(test_df.cosine_similarity)
 
 # Convert labels to numbers
 labels_vals = {
