@@ -19,7 +19,7 @@ def compute_recall(series):
     return len(series.evidence_both) / float(len(series.evidence_gold))
 
 gold_path = "../Classifier/data/test_data.jsonl"
-retrieved_path = "retrieval_2020-04-23_13-54-41.jsonl"
+retrieved_path = "data/retrieval_3_8.jsonl"
 
 gold_df = pd.read_json(gold_path, lines=True)
 retrieved_df = pd.read_json(retrieved_path, lines=True)
@@ -41,5 +41,9 @@ df['precision'] = df.apply(lambda x: compute_precision(x), axis=1)
 df['recall'] = df.apply(lambda x: compute_recall(x), axis=1)
 df.to_json('results.jsonl', orient='records', lines=True)
 
-print('Mean Precision: {}'.format(df.precision.mean()))
-print('Mean Recall: {}'.format(df.recall.mean()))
+precision = df.precision.mean()
+recall = df.recall.mean()
+f1 = 2 * ((precision * recall)/(precision + recall))
+print('Mean Precision: {}'.format(precision))
+print('Mean Recall: {}'.format(recall))
+print('F1: {}'.format(f1))
