@@ -2,7 +2,6 @@ package dk.itu.feverda;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
@@ -111,12 +110,28 @@ public class GoldenDocumentRetriever {
                 String[] line = testSc.nextLine().split("\t");
                 String claim = line[1];
                 String label = line[2];
-                processLine(claim, label, tokenizer, iSearcher, analyzer, POSTagger, outWriter, classLoader);
+                processLine(claim, label, tokenizer, iSearcher, analyzer, POSTagger, outWriter, classLoader, 5, 2);
             }
             testSc.close();
         } else if (args.length == 2) {
             System.out.println(String.format("Received claim '%s' with label '%s' from args.", args[0], args[1]));
-            processLine(args[0], args[1], tokenizer, iSearcher, analyzer, POSTagger, outWriter, classLoader);
+            processLine(args[0], args[1], tokenizer, iSearcher, analyzer, POSTagger, outWriter, classLoader, 5 , 2);
+        } else if (args.length == 3) {
+            // Read our annotations
+            String testPath = args[0];
+            int k = Integer.parseInt(args[1]);
+            int sentK = Integer.parseInt(args[2]);
+            System.out.println("Reading " + testPath + "...");
+            Scanner testSc = new Scanner(new File(testPath));
+            testSc.nextLine(); // skip header
+            System.out.println("Selecting sentences through noun-clause queries...");
+            while(testSc.hasNextLine()) {
+                String[] line = testSc.nextLine().split("\t");
+                String claim = line[1];
+                String label = line[2];
+                processLine(claim, label, tokenizer, iSearcher, analyzer, POSTagger, outWriter, classLoader, k, sentK);
+            }
+            testSc.close();
         } else {
             System.out.println("Cannot parse arguments!");
         }
@@ -129,7 +144,7 @@ public class GoldenDocumentRetriever {
         System.out.println("Done.");
     }
 
-    private static void processLine(String claim, String label, TokenizerME tokenizer, IndexSearcher iSearcher, DanishAnalyzer analyzer, POSTaggerME POSTagger, OutputStreamWriter outWriter, ClassLoader classLoader) throws Exception { 
+    private static void processLine(String claim, String label, TokenizerME tokenizer, IndexSearcher iSearcher, DanishAnalyzer analyzer, POSTaggerME POSTagger, OutputStreamWriter outWriter, ClassLoader classLoader, int k, int sentK) throws Exception { 
         String[] tokenizedClaim = tokenizer.tokenize(claim);
         String[] claimPOS = POSTagger.tag(tokenizedClaim);
         String nounClaim = "";
@@ -143,7 +158,6 @@ public class GoldenDocumentRetriever {
         // Searching the index
         QueryParser parser = new QueryParser("evidence", analyzer);
         Query query = parser.parse(escapedClaim);
-        int k = 5;
         ScoreDoc[] hits = iSearcher.search(query, k).scoreDocs;
 
         // System.out.println(String.format("\nClaim: %s\nResults:", claim));
@@ -181,7 +195,6 @@ public class GoldenDocumentRetriever {
         IndexSearcher sentISearcher = new IndexSearcher(sentIReader);
         QueryParser sentParser = new QueryParser("sentence", sentAnalyzer);
         Query sentQuery = sentParser.parse(escapedClaim);
-        int sentK = 2;
         ScoreDoc[] sentHits = sentISearcher.search(sentQuery, sentK).scoreDocs;
 
         List<String> selectedSentences = new ArrayList<>();
