@@ -8,6 +8,7 @@ import numpy as np
 import seaborn as sn
 import matplotlib.pyplot as plt
 import glob
+import ftfy
 from tqdm import trange
 from torch.nn.utils.rnn import pad_sequence
 from torch.nn import CrossEntropyLoss
@@ -29,7 +30,7 @@ def read_config():
              config['pretrained_model'], config['max_len'], config['batch_size'], config['num_labels'],
              config['learning_rate'], config['num_epochs'], bool(config['enable_plotting']), 
              config['output_dir'], bool(config['enable_training']), config['data_sample'],
-             bool(config['enable_cuda']), bool(config['enable_test']), config['model_save_dir'])
+             bool(config['enable_cuda']), bool(config['enable_test']), config['model_save_dir'], bool(config['enable_test_export']))
 
 def check_required_paths():
     """ Check that output path exists, otherwise create it. """
@@ -360,7 +361,7 @@ start_time = datetime.now()
 
 print('Reading config...')
 CONFIG_PATH = 'config.json'
-TRAIN_DATA_PATH, VALIDATION_DATA_PATH, TEST_DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, ENABLE_PLOTTING, OUTPUT_DIR, ENABLE_TRAINING, DATA_SAMPLE, ENABLE_CUDA, ENABLE_TEST, MODEL_SAVE_DIR = read_config()
+TRAIN_DATA_PATH, VALIDATION_DATA_PATH, TEST_DATA_PATH, PRETRAINED_MODEL, MAX_LEN, BATCH_SIZE, NUM_LABELS, LEARNING_RATE, NUM_EPOCHS, ENABLE_PLOTTING, OUTPUT_DIR, ENABLE_TRAINING, DATA_SAMPLE, ENABLE_CUDA, ENABLE_TEST, MODEL_SAVE_DIR, ENABLE_TEST_EXPORT = read_config()
 check_required_paths()
 if ENABLE_CUDA: print('Using CUDA on {}.'.format(torch.cuda.get_device_name(0)))
 # Use most recent .jsonl file in current directory if no test path was specified to be compatible with end-to-end process
@@ -393,7 +394,10 @@ if ENABLE_TRAINING:
     train_data_df = convert_labels(train_data_df)
     validation_data_df = convert_labels(validation_data_df)
 # Test data evidence already comes concatenated from our document retrieval
-if ENABLE_TEST: test_data_df = convert_labels(test_data_df)
+if ENABLE_TEST:
+    test_data_df = convert_labels(test_data_df)
+    test_data_df.claim = test_data_df.claim.apply(lambda x: ftfy.fix_text(x))
+    test_data_df.evidence = test_data_df.evidence.apply(lambda x: ftfy.fix_text(x))
 print('Pre-processing complete.')
 
 if ENABLE_TRAINING:
@@ -449,6 +453,7 @@ if ENABLE_TEST:
     test_micro_f1, test_macro_f1, test_c_matrix, test_preds = test_model()
     print('Test complete.')
 
-    print('Exporting test results to csv...')
-    export_test_results(test_data_df, test_preds)
-    print('Export complete.')
+    if ENABLE_TEST_EXPORT:
+        print('Exporting test results to csv...')
+        export_test_results(test_data_df, test_preds)
+        print('Export complete.')

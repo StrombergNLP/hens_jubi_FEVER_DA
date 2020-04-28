@@ -6,13 +6,14 @@
     "learning_rate": 1e-5,
     "train_data_path": "data/train_data.jsonl",
     "validation_data_path": "data/validation_data.jsonl", 
-    "test_data_path": "",
+    "test_data_path": "data/retrieval_5_2.jsonl",
     "enable_test": 1,
     "data_sample": 1,
     "pretrained_model": "feverda-finetuned/",
     "model_save_dir": "feverda-finetuned/",
-    "enable_plotting": 1,
+    "enable_plotting": 0,
     "enable_training": 0,
     "output_dir": "out/",
-    "enable_cuda": 1
+    "enable_cuda": 1,
+    "enable_test_export": 0
 }
