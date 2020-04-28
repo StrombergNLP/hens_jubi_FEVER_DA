@@ -1,9 +1,12 @@
 package dk.itu.feverda;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -83,16 +86,10 @@ public class GoldenDocumentRetriever {
         DirectoryReader iReader = DirectoryReader.open(directory);
         IndexSearcher iSearcher = new IndexSearcher(iReader);
 
-        // Read our annotations
-        String testPath = args.length > 0 ? args[0] : "claims.tsv";
-        System.out.println("Reading " + testPath + "...");
-        Scanner testSc = new Scanner(new File(testPath));
-        testSc.nextLine(); // skip header
-
         DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
         LocalDateTime now = LocalDateTime.now();
         String outFileName = "out/retrieval_" + dtf.format(now) + ".jsonl";
-        FileWriter outWriter = new FileWriter(outFileName);
+        OutputStreamWriter outWriter = new OutputStreamWriter(new FileOutputStream(outFileName), StandardCharsets.UTF_8);
         // outWriter.append("claim\tevidence\tlabel\n");
 
         // Set up models for tokenizing and POS tagging
@@ -103,89 +100,105 @@ public class GoldenDocumentRetriever {
         POSModel POSModel = new POSModel(POSModelIn);
         POSTaggerME POSTagger = new POSTaggerME(POSModel);
 
-        System.out.println("Selecting sentences through noun-clause queries...");
-        while(testSc.hasNextLine()) {
-            String[] line = testSc.nextLine().split("\t");
-            String claim = line[1];
-            String[] tokenizedClaim = tokenizer.tokenize(claim);
-            String[] claimPOS = POSTagger.tag(tokenizedClaim);
-            String nounClaim = "";
-            for (int i = 0; i < tokenizedClaim.length; i++) {
-                String token = tokenizedClaim[i];
-                String tag = claimPOS[i];
-                if (tag.startsWith("N")) nounClaim += " " + token;
+        if (args.length < 2) {
+            // Read our annotations
+            String testPath = args.length == 1 ? args[0] : "claims.tsv";
+            System.out.println("Reading " + testPath + "...");
+            Scanner testSc = new Scanner(new File(testPath));
+            testSc.nextLine(); // skip header
+            System.out.println("Selecting sentences through noun-clause queries...");
+            while(testSc.hasNextLine()) {
+                String[] line = testSc.nextLine().split("\t");
+                String claim = line[1];
+                String label = line[2];
+                processLine(claim, label, tokenizer, iSearcher, analyzer, POSTagger, outWriter, classLoader);
             }
-            String escapedClaim = QueryParser.escape(nounClaim.trim());
-            String label = line[2];
-
-            // Searching the index
-            QueryParser parser = new QueryParser("evidence", analyzer);
-            Query query = parser.parse(escapedClaim);
-            int k = 5;
-            ScoreDoc[] hits = iSearcher.search(query, k).scoreDocs;
-
-            // System.out.println(String.format("\nClaim: %s\nResults:", claim));
-            List<String> evidence = new ArrayList<>();
-            for (int i = 0; i < hits.length; i++) {
-                Document hitDoc = iSearcher.doc(hits[i].doc);
-                evidence.add(hitDoc.get("evidence"));
-                // System.out.println(String.format("\t%d: %s", i + 1, hitDoc.get("evidence")));
-            }
-
-            String joinedEvidence = String.join(" ", evidence); // Concatenate to one string
-
-            // Split into sentences
-            InputStream modelIn = classLoader.getResourceAsStream("da-sent.bin");
-            SentenceModel sentModel = new SentenceModel(modelIn);
-            SentenceDetectorME sentenceDetector = new SentenceDetectorME(sentModel);
-            String[] sentences = sentenceDetector.sentDetect(joinedEvidence);
-
-            // Building the sentence index
-            DanishAnalyzer sentAnalyzer = new DanishAnalyzer();
-            Path sentIndexPath = Files.createTempDirectory("sentIndex");
-            Directory sentDirectory = FSDirectory.open(sentIndexPath);
-            IndexWriterConfig sentConfig = new IndexWriterConfig(sentAnalyzer);
-            IndexWriter sentIWriter = new IndexWriter(sentDirectory, sentConfig);
-
-            // System.out.println("\n" + claim);
-            for(int i = 0; i < sentences.length; i++) {
-                addSent(sentIWriter, sentences[i], i);
-                // System.out.println(sentences[i]);
-            }
-            sentIWriter.close();
-
-            // Searching the sent index
-            DirectoryReader sentIReader = DirectoryReader.open(sentDirectory);
-            IndexSearcher sentISearcher = new IndexSearcher(sentIReader);
-            QueryParser sentParser = new QueryParser("sentence", sentAnalyzer);
-            Query sentQuery = sentParser.parse(escapedClaim);
-            int sentK = 2;
-            ScoreDoc[] sentHits = sentISearcher.search(sentQuery, sentK).scoreDocs;
-
-            List<String> selectedSentences = new ArrayList<>();
-            for (int j = 0; j < sentHits.length; j++) {
-                Document hitDoc = sentISearcher.doc(sentHits[j].doc);
-                selectedSentences.add(hitDoc.get("sentence"));
-            }
-
-            String joinedSelectedEvidence = String.join(" ", selectedSentences); // Concatenate to one string
-            // outWriter.append(claim).append("\t").append(joinedSelectedEvidence).append("\t").append(label).append("\n");
-            outWriter.append("{\"claim\":\"").append(claim.replace("\"", "\\\""))
-                .append("\",\"evidence\":\"").append(joinedSelectedEvidence.replace("\"", "\\\""))
-                .append("\",\"label\":\"").append(label).append("\"}\n");
-
-            sentIReader.close();
-            sentDirectory.close();
-            IOUtils.rm(sentIndexPath);
+            testSc.close();
+        } else if (args.length == 2) {
+            System.out.println(String.format("Received claim '%s' with label '%s' from args.", args[0], args[1]));
+            processLine(args[0], args[1], tokenizer, iSearcher, analyzer, POSTagger, outWriter, classLoader);
+        } else {
+            System.out.println("Cannot parse arguments!");
         }
         
         // Cleanup
         outWriter.close();
-        testSc.close();
         iReader.close();
         directory.close();
         // IOUtils.rm(indexPath);
         System.out.println("Done.");
+    }
+
+    private static void processLine(String claim, String label, TokenizerME tokenizer, IndexSearcher iSearcher, DanishAnalyzer analyzer, POSTaggerME POSTagger, OutputStreamWriter outWriter, ClassLoader classLoader) throws Exception { 
+        String[] tokenizedClaim = tokenizer.tokenize(claim);
+        String[] claimPOS = POSTagger.tag(tokenizedClaim);
+        String nounClaim = "";
+        for (int i = 0; i < tokenizedClaim.length; i++) {
+            String token = tokenizedClaim[i];
+            String tag = claimPOS[i];
+            if (tag.startsWith("N")) nounClaim += " " + token;
+        }
+        String escapedClaim = QueryParser.escape(nounClaim.trim());
+
+        // Searching the index
+        QueryParser parser = new QueryParser("evidence", analyzer);
+        Query query = parser.parse(escapedClaim);
+        int k = 5;
+        ScoreDoc[] hits = iSearcher.search(query, k).scoreDocs;
+
+        // System.out.println(String.format("\nClaim: %s\nResults:", claim));
+        List<String> evidence = new ArrayList<>();
+        for (int i = 0; i < hits.length; i++) {
+            Document hitDoc = iSearcher.doc(hits[i].doc);
+            evidence.add(hitDoc.get("evidence"));
+            // System.out.println(String.format("\t%d: %s", i + 1, hitDoc.get("evidence")));
+        }
+
+        String joinedEvidence = String.join(" ", evidence); // Concatenate to one string
+
+        // Split into sentences
+        InputStream modelIn = classLoader.getResourceAsStream("da-sent.bin");
+        SentenceModel sentModel = new SentenceModel(modelIn);
+        SentenceDetectorME sentenceDetector = new SentenceDetectorME(sentModel);
+        String[] sentences = sentenceDetector.sentDetect(joinedEvidence);
+
+        // Building the sentence index
+        DanishAnalyzer sentAnalyzer = new DanishAnalyzer();
+        Path sentIndexPath = Files.createTempDirectory("sentIndex");
+        Directory sentDirectory = FSDirectory.open(sentIndexPath);
+        IndexWriterConfig sentConfig = new IndexWriterConfig(sentAnalyzer);
+        IndexWriter sentIWriter = new IndexWriter(sentDirectory, sentConfig);
+
+        // System.out.println("\n" + claim);
+        for(int i = 0; i < sentences.length; i++) {
+            addSent(sentIWriter, sentences[i], i);
+            // System.out.println(sentences[i]);
+        }
+        sentIWriter.close();
+
+        // Searching the sent index
+        DirectoryReader sentIReader = DirectoryReader.open(sentDirectory);
+        IndexSearcher sentISearcher = new IndexSearcher(sentIReader);
+        QueryParser sentParser = new QueryParser("sentence", sentAnalyzer);
+        Query sentQuery = sentParser.parse(escapedClaim);
+        int sentK = 2;
+        ScoreDoc[] sentHits = sentISearcher.search(sentQuery, sentK).scoreDocs;
+
+        List<String> selectedSentences = new ArrayList<>();
+        for (int j = 0; j < sentHits.length; j++) {
+            Document hitDoc = sentISearcher.doc(sentHits[j].doc);
+            selectedSentences.add(hitDoc.get("sentence"));
+        }
+
+        String joinedSelectedEvidence = String.join(" ", selectedSentences); // Concatenate to one string
+        // outWriter.append(claim).append("\t").append(joinedSelectedEvidence).append("\t").append(label).append("\n");
+        outWriter.append("{\"claim\":\"").append(claim.replace("\"", "\\\""))
+            .append("\",\"evidence\":\"").append(joinedSelectedEvidence.replace("\"", "\\\""))
+            .append("\",\"label\":\"").append(label).append("\"}\n");
+
+        sentIReader.close();
+        sentDirectory.close();
+        IOUtils.rm(sentIndexPath);
     }
 
     private static void addDoc(IndexWriter w, String evidence, String title) throws IOException {
