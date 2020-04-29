@@ -2,8 +2,8 @@ import pandas as pd
 from sklearn.utils import resample
 
 # Load data
-# DATA_PATH = '../Data Generation/CommonData/annotations/annotations_00.jsonl'
-DATA_PATH = 'FEVER_train.jsonl'
+DATA_PATH = 'train_data.jsonl'
+# DATA_PATH = 'FEVER_train.jsonl'
 data_df = pd.read_json(DATA_PATH, lines=True).head(1800)
 claims = data_df.claim.tolist()
 claims = [c[:-1] for c in claims]       # Cut off the final period
@@ -30,12 +30,12 @@ data_df['ngrams'] = data_df.apply(lambda x: extract_ngrams(x.claim), axis=1)
 print(data_df[['claim', 'label']])
 
 def balance_data():
-    # supported_df = data_df[data_df['label'] == 'Supported']
-    # refuted_df = data_df[data_df['label'] == 'Refuted']
-    # nei_df = data_df[data_df['label'] == 'NotEnoughInfo']
-    supported_df = data_df[data_df['label'] == 'SUPPORTS']
-    refuted_df = data_df[data_df['label'] == 'REFUTES']
-    nei_df = data_df[data_df['label'] == 'NOT ENOUGH INFO']
+    supported_df = data_df[data_df['label'] == 'Supported']
+    refuted_df = data_df[data_df['label'] == 'Refuted']
+    nei_df = data_df[data_df['label'] == 'NotEnoughInfo']
+    # supported_df = data_df[data_df['label'] == 'SUPPORTS']
+    # refuted_df = data_df[data_df['label'] == 'REFUTES']
+    # nei_df = data_df[data_df['label'] == 'NOT ENOUGH INFO']
 
     # major_len = max([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
     minor_len = min([len(supported_df.label), len(refuted_df.label), len(nei_df.label)])
@@ -58,18 +58,18 @@ for i in range(10):
 
     # Do all of the mathy part for each n-gram
 
-    # labels = ['Refuted', 'Supported', 'NotEnoughInfo']
-    labels = ['REFUTES', 'SUPPORTS', 'NOT ENOUGH INFO']
+    labels = ['Refuted', 'Supported', 'NotEnoughInfo']
+    # labels = ['REFUTES', 'SUPPORTS', 'NOT ENOUGH INFO']
     cues_df = balanced_df[['ngrams', 'claim', 'label']]
     cues_df = cues_df.explode('ngrams')
     cues_df = cues_df.groupby(['ngrams', 'label']).count().reset_index()
     cues_df = cues_df.pivot(index='ngrams', columns='label', values='claim').reset_index()
     cues_df = cues_df.fillna(value=0)
 
-    # cues_df['total'] = cues_df.apply(lambda x: x.Supported + x.Refuted + x.NotEnoughInfo, axis=1)
-    # cues_df['max'] = cues_df.apply(lambda x: max([x.Supported, x.Refuted, x.NotEnoughInfo]), axis=1)
-    cues_df['total'] = cues_df.apply(lambda x: x['SUPPORTS'] + x['REFUTES'] + x['NOT ENOUGH INFO'], axis=1)
-    cues_df['max'] = cues_df.apply(lambda x: max([x['SUPPORTS'], x['REFUTES'], x['NOT ENOUGH INFO']]), axis=1)
+    cues_df['total'] = cues_df.apply(lambda x: x.Supported + x.Refuted + x.NotEnoughInfo, axis=1)
+    cues_df['max'] = cues_df.apply(lambda x: max([x.Supported, x.Refuted, x.NotEnoughInfo]), axis=1)
+    # cues_df['total'] = cues_df.apply(lambda x: x['SUPPORTS'] + x['REFUTES'] + x['NOT ENOUGH INFO'], axis=1)
+    # cues_df['max'] = cues_df.apply(lambda x: max([x['SUPPORTS'], x['REFUTES'], x['NOT ENOUGH INFO']]), axis=1)
 
     # print(cues_df.sort_values('total'))
 
@@ -90,4 +90,5 @@ all_cues_df = all_cues_df.groupby('ngrams').mean().reset_index()
 
 # Output to file
 # all_cues_df.to_json('out.jsonl', orient='records', lines=True)
-all_cues_df.to_csv('cue_analyser_results.csv')
+all_cues_df.to_csv('cue_analyser_results.csv', sep=';', encoding='cp1252') # Encoding for Excel on Windows
+# all_cues_df.to_csv('cue_analyser_results.csv', sep=';')
