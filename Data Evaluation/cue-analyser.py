@@ -2,8 +2,9 @@ import pandas as pd
 from sklearn.utils import resample
 
 # Load data
-DATA_PATH = 'train_data.jsonl'
+# DATA_PATH = '../Data Generation/CommonData/annotations/annotations_00.jsonl'
 # DATA_PATH = 'FEVER_train.jsonl'
+DATA_PATH = 'train_data.jsonl'
 data_df = pd.read_json(DATA_PATH, lines=True).head(1800)
 claims = data_df.claim.tolist()
 claims = [c[:-1] for c in claims]       # Cut off the final period
@@ -90,5 +91,4 @@ all_cues_df = all_cues_df.groupby('ngrams').mean().reset_index()
 
 # Output to file
 # all_cues_df.to_json('out.jsonl', orient='records', lines=True)
-all_cues_df.to_csv('cue_analyser_results.csv', sep=';', encoding='cp1252') # Encoding for Excel on Windows
-# all_cues_df.to_csv('cue_analyser_results.csv', sep=';')
+all_cues_df.to_csv('cue_analyser_results.csv', sep=';')
