@@ -49,18 +49,14 @@ def plot_multi_loss(combined_data):
     ax = sn.lineplot(data=combined_data)
     plt.show()
 
-def plot_single_box(f1_score, f1_type):
+def plot_single_box(df):
     sn.set(style="whitegrid", font_scale=0.75)
-    f1_score[f1_type] = f1_score[0]
-    ax = sn.boxplot(x=f1_score[f1_type], orient='v', width=0.35, palette='Blues_d')
+    ax = sn.boxplot(x=df.label.head(1), y=df.value.head(1), orient='v', width=0.35, palette='Blues_d')
     plt.show()
 
-def plot_multi_box(micro, macro):
-    combined_df = pd.DataFrame(columns=['micro', 'macro'])
-    combined_df['micro'] = micro[0]
-    combined_df['macro'] = macro[0]
-    sn.set(style="whitegrid", font_scale=0.75)
-    ax = sn.boxplot(data=combined_df, order=['micro', 'macro'], width=0.35, palette='Blues_d')
+def plot_multi_box(df, order):
+    sn.set(style='white', font_scale=0.75)
+    ax = sn.boxplot(data=df, x='learning rate', y='loss', order= order, orient='v', palette='muted')
     plt.show()
 
 def avg_loss(combined_data):
@@ -81,7 +77,8 @@ def avg_matrix(combined_data, config):
     plot_confusion_matrix(average_matrix, config)
 
 def plot_bars(df, xaxis, yaxis, xlabel=None, ylabel=None, hue=None):
-    ax = sn.barplot(x=xaxis, y=yaxis, hue=hue, data=df)
+    sn.set(style='white', font_scale=0.75)
+    ax = sn.barplot(x=xaxis, y=yaxis, hue=hue, data=df, palette='muted')
     if xlabel: ax.set(xlabel=xlabel)
     if ylabel: ax.set(ylabel=ylabel)
     plt.show()
@@ -126,48 +123,70 @@ def melt_dataframe(df):
     return df
 
 #---------
-# Main
+# Train loss over learning rates
+#---------
+# labeled_paths = {
+#     '1e-6': 'results/lrdata/1e-6.json', 
+#     '1e-5': 'results/lrdata/1e-5.json',
+#     '2e-5': 'results/lrdata/2e-5.json',
+#     '3e-5': 'results/lrdata/3e-5.json',
+#     '1e-4': 'results/lrdata/1e-4.json'
+# }
+
+# lr_df = read_files(labeled_paths)
+# lr_df['learning rate'] = lr_df['label']
+# lr_df = lr_df[['learning rate', 'loss']]
+# print(lr_df)
+# # plot_single_box(lr_df)
+# plot_multi_box(lr_df, ['1e-6', '1e-5', '2e-5', '3e-5', '1e-4'])
+
+#---------
+# Ablations
 #---------
 
 # Random labels
-# Order: [config, c_matrix, loss, micro_f1, macro_f1]
-# results_base = parse_data('results/24-03-2020-13-24-58.json')
 
-# labeled_paths = {
-#     0.0: 'results/24-03-2020-13-24-58.json',
-#     0.1: 'results/25-03-2020-13-19-45.json',
-#     0.5: 'results/25-03-2020-13-36-03.json',
-#     1.0: 'results/25-03-2020-13-52-21.json'
-# }
-# random_labels_df = read_files(labeled_paths)
+labeled_paths = {
+    0.0: 'results/24-03-2020-13-24-58.json',
+    0.1: 'results/25-03-2020-13-19-45.json',
+    0.5: 'results/25-03-2020-13-36-03.json',
+    1.0: 'results/25-03-2020-13-52-21.json'
+}
+random_labels_df = read_files(labeled_paths)
 # plot_precision_recall(random_labels_df.query("label == 0.5").confusion_matrix.values[0])
 
-# random_labels_df = melt_dataframe(random_labels_df[['label', 'micro_f1', 'macro_f1']])
-# plot_bars(random_labels_df, 'label', 'value', hue='attribute', xlabel='random labels %', ylabel='f1 score') 
+random_labels_df = melt_dataframe(random_labels_df[['label', 'micro_f1', 'macro_f1']])
+random_labels_df = random_labels_df.replace('micro_f1', 'micro $f_1$')
+random_labels_df = random_labels_df.replace('macro_f1', 'macro $f_1$')
+# plot_bars(random_labels_df, 'label', 'value', hue='attribute', xlabel='random labels %', ylabel='$f_1$ score') 
 
 # MAX LEN (incomplete data)
-# labeled_paths = {
-#     5: 'results/25-03-2020-12-29-53.json',
-#     25: 'results/25-03-2020-12-22-29.json',
-#     75: 'results/25-03-2020-15-05-39.json',
-#     125: 'results/25-03-2020-14-48-23.json',
-#     250: 'results/24-03-2020-13-24-58.json',
-# }
+labeled_paths = {
+    5: 'results/25-03-2020-12-29-53.json',
+    25: 'results/25-03-2020-12-22-29.json',
+    75: 'results/25-03-2020-15-05-39.json',
+    125: 'results/25-03-2020-14-48-23.json',
+    250: 'results/24-03-2020-13-24-58.json',
+}
 
-# maxlen_df = read_files(labeled_paths)
-# maxlen_df = melt_dataframe(maxlen_df[['label', 'micro_f1', 'macro_f1']])
-# plot_bars(maxlen_df, 'label', 'value', hue='attribute', xlabel='max len', ylabel='f1 score')    
+maxlen_df = read_files(labeled_paths)
+maxlen_df = melt_dataframe(maxlen_df[['label', 'micro_f1', 'macro_f1']])
+maxlen_df = maxlen_df.replace('micro_f1', 'micro $f_1$')
+maxlen_df = maxlen_df.replace('macro_f1', 'macro $f_1$')
+# plot_bars(maxlen_df, 'label', 'value', hue='attribute', xlabel='max len', ylabel='$f_1$ score')    
 
 # Shuffled word order
-# labeled_paths = {
-#     'base': 'results/24-03-2020-13-24-58.json',
-#     'shuffled': 'results/25-03-2020-12-53-56.json',
-#     'no evidence': 'results/26-03-2020-08-34-50.json'
-# }
+labeled_paths = {
+    'base': 'results/24-03-2020-13-24-58.json',
+    'shuffled': 'results/25-03-2020-12-53-56.json',
+    'no evidence': 'results/26-03-2020-08-34-50.json'
+}
 
-# shuffled_words_df = read_files(labeled_paths)
-# shuffled_words_df = melt_dataframe(shuffled_words_df[['label', 'micro_f1', 'macro_f1']])
-# plot_bars(shuffled_words_df, 'label', 'value', hue='attribute', ylabel='f1 score', xlabel='data ablation')
+shuffled_words_df = read_files(labeled_paths)
+shuffled_words_df = melt_dataframe(shuffled_words_df[['label', 'micro_f1', 'macro_f1']])
+shuffled_words_df = shuffled_words_df.replace('micro_f1', 'micro $f_1$')
+shuffled_words_df = shuffled_words_df.replace('macro_f1', 'macro $f_1$')
+# plot_bars(shuffled_words_df, 'label', 'value', hue='attribute', ylabel='$f_1$ score', xlabel='data ablation')
 
 # Replacing verbs and nouns
 labeled_paths = {
@@ -176,4 +195,6 @@ labeled_paths = {
 }
 replaced_words_df = read_files(labeled_paths)
 replaced_words_df = melt_dataframe(replaced_words_df[['label', 'micro_f1', 'macro_f1']])
-plot_bars(replaced_words_df, 'label', 'value', hue='attribute', ylabel='f1 score', xlabel='data ablation')
+replaced_words_df = replaced_words_df.replace('micro_f1', 'micro $f_1$')
+replaced_words_df = replaced_words_df.replace('macro_f1', 'macro $f_1$')
+plot_bars(replaced_words_df, 'label', 'value', hue='attribute', ylabel='$f_1$ score', xlabel='data ablation')
