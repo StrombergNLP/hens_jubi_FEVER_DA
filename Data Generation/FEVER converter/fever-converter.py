@@ -53,3 +53,7 @@ da_fever.to_json('../CommonData/fever_da.jsonl', orient='records', lines=True)
 en_fever.to_json('../CommonData/fever_en.jsonl', orient='records', lines=True)
 print('Saved {} danish claims to file.'.format(len(da_fever['claim'])))
 print('Saved {} english claims to file.'.format(len(en_fever['claim'])))
+print('{} da supported, {} da refuted, {} da nei'.format(len(da_fever.query('label == "Supported"')), 
+    len(da_fever.query('label == "Refuted"')), len(da_fever.query('label == "NotEnoughInfo"'))))
+print('{} en supported, {} en refuted, {} en nei'.format(len(en_fever.query('label == "Supported"')), 
+    len(en_fever.query('label == "Refuted"')), len(en_fever.query('label == "NotEnoughInfo"'))))
