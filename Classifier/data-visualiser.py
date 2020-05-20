@@ -32,7 +32,7 @@ def plot_confusion_matrix(c_matrix, num_labels):
     df_cm = df_cm.set_index('Labels')
     plt.figure(figsize=(10,7))
     sn.set(style='white', font_scale=0.75)
-    sn.heatmap(df_cm, cmap="Blues", annot=True, annot_kws={'size':10})    # font size
+    sn.heatmap(df_cm, cmap="Blues", annot=True, annot_kws={'size':10}, fmt='g')    # font size
     plt.show()
 
 def plot_loss(train_loss):
@@ -131,20 +131,55 @@ def melt_dataframe(df, varsname):
     df = df.melt(id_vars=varsname, var_name='attribute')
     return df
 
-def plot(df):
+def plot(df, x, y):
     sn.set(style='white', font_scale=0.75)
-    ax = sn.lineplot(x="l, k", y="value", hue="attribute", data=df, 
-            style="attribute", markers=True, dashes=False, palette="muted")
+    ax = sn.lineplot(x=x, y=y, data=df, 
+            markers=True, dashes=False, palette="muted")
     plt.show()
     #sns.lineplot(x="timepoint", y="signal", data=fmri)
+
+#---------
+# Final CF 
+#---------
+
+# labeled_paths = {
+#     'cf': 'results/cf.json' 
+# }
+
+# data_df = read_files(labeled_paths)
+# # print(data_df.confusion_matrix)
+# plot_confusion_matrix(data_df.confusion_matrix.values[0], 3)
+
+#---------
+# Alternate data
+#---------
+# data_df = pd.DataFrame(columns=['label', 'micro $f_1$', 'macro $f_1$'])
+# data_df['label'] = ['Base', 'Zero-Shot Cross-Lingual', 'Translated']
+# data_df['micro $f_1$'] = [0.5146198830409356, 0.4064327485380117, 0.49122807017543857]
+# data_df['macro $f_1$'] = [0.46859305125559, 0.34805683958226336, 0.25897065897065896]
+# data_df = melt_dataframe(data_df, 'label')
+# plot_bars(data_df, 'label', 'value', hue='attribute')
+
+#---------
+# learning rate by loss
+#---------
+# labeled_paths = {
+#     '1e-6': 'results/train_06-05.json' 
+# }
+
+# data_df = read_files(labeled_paths)
+# data_df = data_df[['label', 'loss']]
+# plot(data_df, 'label', data_df.loss[0])
+# print(data_df)
 
 #---------
 # model epoch
 #---------
 data_df = pd.DataFrame(columns=['label', 'micro $f_1$', 'macro $f_1$'])
-data_df['label'] = ['k= 3, l= 10', 'k= 1, l= 4', 'Original']
-data_df['micro $f_1$'] = [0.564, 0.596, 0.672]
-data_df['macro $f_1$'] = [0.469, 0.546, 0.629]
+# # data_df['label'] = ['k= 3, l= 10', 'k= 1, l= 4', 'Original']
+data_df['label'] = ['3 epochs', '10 epochs', '20 epochs', '30 epochs', '100 epochs']
+data_df['micro $f_1$'] = [0.5146198830409356, 0.5350877192982456, 0.5497076023391813, 0.47953216374269003, 0.5146198830409356]
+data_df['macro $f_1$'] = [0.46859305125559, 0.4972437985467302, 0.5000523819077916, 0.3941096833795246, 0.4794469218382262]
 data_df = melt_dataframe(data_df, 'label')
 plot_bars(data_df, 'value', 'label', hue='attribute', ylabel=' ')
 
