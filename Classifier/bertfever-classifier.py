@@ -393,10 +393,12 @@ if ENABLE_TRAINING:
     validation_data_df = concatenate_evidence(validation_data_df)
     train_data_df = convert_labels(train_data_df)
     validation_data_df = convert_labels(validation_data_df)
-# Test data evidence already comes concatenated from our document retrieval
 if ENABLE_TEST:
     test_data_df = convert_labels(test_data_df)
     test_data_df.claim = test_data_df.claim.apply(lambda x: ftfy.fix_text(x))
+    # In case test data evidence doesn't already come concatenated from our document retrieval
+    if isinstance(test_data_df.evidence[0], list):
+        test_data_df = concatenate_evidence(test_data_df)
     test_data_df.evidence = test_data_df.evidence.apply(lambda x: ftfy.fix_text(x))
 print('Pre-processing complete.')
 
