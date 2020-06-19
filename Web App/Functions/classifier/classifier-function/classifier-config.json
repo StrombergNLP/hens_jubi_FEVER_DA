@@ -1,0 +1,7 @@
+{
+    "max_len": 125,
+    "batch_size": 16,
+    "num_labels": 3,
+    "pretrained_model": "classifier-function/models/20e-b32/",
+    "enable_cuda": 0
+}
