@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title> Danish Fact Verification </title>
+
+        <!-- Scripts -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="script.js"></script>
+
+        <!-- Import stylesheet -->
+        <link rel="stylesheet"
+            type="text/css"
+            href="style.css"/>
+    </head>
+
+    <body>
+
+        <!-- Header -->
+        <div id='top'> 
+            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+            viewBox="0 0 14 17.5" style="enable-background:new 0 0 14 17.5;" xml:space="preserve">
+                <style type="text/css">
+                    .st0{fill-rule:evenodd;clip-rule:evenodd;fill:none;stroke:#F7F6F8;stroke-miterlimit:10;}
+                    .st1{fill-rule:evenodd;clip-rule:evenodd;fill:#458E57;}
+                </style>
+                <g id="icon">
+                    <path class="st0" d="M6.7,14.2l-0.8,0.4c-0.4,0.2-0.8,0-1-0.3l-0.5-0.7c-0.1-0.1-0.2-0.2-0.3-0.2l-0.9-0.1c-0.4,0-0.7-0.4-0.8-0.8
+                        l-0.1-0.9c0-0.1-0.1-0.2-0.2-0.3l-0.7-0.5C1,10.6,0.9,10.1,1,9.8l0.4-0.8c0-0.1,0-0.2,0-0.3L1,7.7c-0.2-0.4,0-0.8,0.3-1l0.7-0.5
+                        C2.2,6.1,2.2,6,2.2,5.9L2.3,5c0-0.4,0.4-0.7,0.8-0.8L4,4.1c0.1,0,0.2-0.1,0.3-0.2l0.5-0.7c0.2-0.3,0.7-0.4,1-0.3l0.8,0.4
+                        c0.1,0,0.2,0,0.3,0l0.8-0.4c0.4-0.2,0.8,0,1,0.3L9.4,4c0.1,0.1,0.2,0.2,0.3,0.2l0.9,0.1c0.4,0,0.7,0.4,0.8,0.8l0.1,0.9
+                        c0,0.1,0.1,0.2,0.2,0.3l0.7,0.5c0.3,0.2,0.4,0.7,0.3,1l-0.4,0.8c0,0.1,0,0.2,0,0.3l0.4,0.8c0.2,0.4,0,0.8-0.3,1l-0.7,0.5
+                        c-0.1,0.1-0.2,0.2-0.2,0.3l-0.1,0.9c0,0.4-0.4,0.7-0.8,0.8l-0.9,0.1c-0.1,0-0.2,0.1-0.3,0.2l-0.5,0.7c-0.2,0.3-0.7,0.4-1,0.3
+                        L7,14.2C6.9,14.1,6.8,14.1,6.7,14.2z"/>
+                    <path class="st1" d="M4.2,8L3.9,8.3c-0.1,0.1-0.1,0.3,0,0.4L6,10.9c0.1,0.1,0.3,0.1,0.4,0l3.4-3.4C10,7.3,10,7.1,9.8,7L9.5,6.6
+                        c-0.1-0.1-0.3-0.1-0.4,0L6.4,9.3C6.3,9.5,6.1,9.5,6,9.3L4.6,8C4.5,7.9,4.3,7.9,4.2,8z"/>
+                </g>
+            </svg>
+            <h1 id='title'> Danish Fact Verification </h1>
+        <div> 
+        
+        <!-- Input -->
+        <div id='claim-input'>
+            <form>
+                <input type='text' id='claim' name='claim'>
+                <input type='submit' value='GO'>
+            </form>
+
+            <p id='desc'> What do you claim, kind sir? </p>
+        </div>
+
+        <!-- Output -->
+        <button name="temporary-button" onclick="getEvidence()">GetEvidence</button>
+        <div id='evidence-output'>
+            <p id="evidence">Evidence goes here</p>
+        </div>
+        <div id='prediction-output'>
+            <p id="prediction">Prediction goes here</p>
+        </div>
+
+        <!-- Footer -->
+        <div id='footer'>
+            <p> © Julie Binau & Henri Schulte <br> M.Sc. Software Development </p>
+        </div>
+    
+    </body>
+</html>

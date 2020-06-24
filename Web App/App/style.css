@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,600;0,800;1,300;1,400;1,600;1,800&display=swap');
+
+body {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.25pt;
+    background-color: #e5bc5e;
+    color: #f8f7f8;
+}
+
+input {
+    outline:none;
+   }
+
+input[type=text] {
+    width: 55vw;
+    color: #232323; 
+    background-color: #f8f7f8;
+    border: #f8f7f8;
+    border-width: 10pt;
+    height: 25pt;
+    text-align: center;
+    border-radius: 10px;
+}
+
+input[type=submit]  {
+    font-family: 'Poppins', sans-serif !important;
+    margin-left: 10pt; 
+    height: 25pt;
+    background-color: #f8f7f8;
+    border: #f8f7f8;
+    border-width: 10pt;
+    width: 50pt;
+    font-weight: 600;
+    color: #232323; 
+    border-radius: 10px;
+    transition: 0.3s;
+}
+
+input[type=submit]:hover {
+    cursor: pointer;
+    color: #458e57;
+    width: 75pt;
+}
+
+#title {
+    text-transform:  uppercase;
+    font-weight: 600;
+    letter-spacing: 1.5pt;
+    font-size: 3.5vw;
+    width: 75%; 
+    padding: 10pt;
+    margin: auto;
+}
+
+#top {
+    text-align: center;
+    margin-top: 100pt;
+}
+
+#claim-input {
+    margin-top: 75pt;
+    height: 25vw;
+}
+
+#desc {
+    margin-top: 25pt;
+}
+
+#footer {
+    font-weight: 300;
+    font-size: 8.5pt;
+}
+
+svg {
+    height: 75pt;
+    margin: auto;
+}
